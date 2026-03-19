@@ -38,6 +38,58 @@ ASOR（ACR Smart Orchestrator & Resolver）是一款专为 GFW 内开发者设�
 | **阿里云 AccessKey Secret** | 配合 AccessKey ID 使用 | 同上，创建时同时获得 |
 | **阿里云账号** | 使用 ACR 服务 | [阿里云官网](https://www.aliyun.com/) 注册 |
 
+### 🔐 最小权限配置指南
+
+#### 1. GitHub Personal Access Token
+
+**步骤：**
+1. 访问 https://github.com/settings/tokens
+2. 点击 "Generate new token (classic)"
+3. **Token 名称**: `ASOR-ACR-Access`
+4. **过期时间**: 建议选择 90 天或更短，定期更换
+5. **最小权限范围**（只勾选以下权限）：
+   - ✅ `repo` - 完整仓库访问（用于读取仓库信息）
+   - ✅ `read:org` - 访问组织信息（如需要）
+
+**⚠️ 安全提示：**
+- 不要勾选 `delete_repo` 或 `admin:org` 等高风险权限
+- Token 创建后**立即复制**，之后无法再次查看
+- 建议使用 GitHub 的 Token 过期功能，定期更换
+
+#### 2. 阿里云 AccessKey
+
+**步骤：**
+1. 登录 [阿里云控制台](https://www.aliyun.com/)
+2. 点击右上角头像 → AccessKey 管理
+3. 选择 "创建 AccessKey"
+4. **安全验证**：需要手机验证码或邮箱验证
+5. **立即保存**：AccessKey ID 和 Secret 只显示一次
+
+**最小权限配置：**
+
+创建 AccessKey 后，需要为其配置最小权限：
+
+1. 访问 [RAM 控制台](https://ram.console.aliyun.com/users)
+2. 找到你的用户 → 点击 "添加权限"
+3. 选择 "系统策略"
+4. **只添加以下策略**（搜索并勾选）：
+   - `AliyunContainerRegistryFullAccess` - 容器仓库服务完整权限
+
+**⚠️ 安全提示：**
+- 不要给予 `AdministratorAccess` 或 `AliyunRAMFullAccess`
+- 不要在代码中硬编码 AccessKey
+- 建议为不同项目创建不同的 AccessKey
+- 定期更换 AccessKey（阿里云建议 90 天）
+
+#### 3. ACR 命名空间创建
+
+**步骤：**
+1. 访问 [ACR 控制台](https://cr.console.aliyun.com/)
+2. 选择地区（如：华北 2 北京）
+3. 点击 "创建命名空间"
+4. **命名空间名称**: `asor`（或自定义）
+5. **是否公开**: 建议选择 "私有"（更安全）
+
 ### 可选材料
 
 | 材料 | 用途 | 说明 |

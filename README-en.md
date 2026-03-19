@@ -17,13 +17,13 @@ Unlike traditional solutions, ASOR requires:
 - ❌ No Kubernetes cluster
 - ❌ No complex CI/CD pipelines
 - ❌ No multi-tool coordination
+- ❌ No background server or daemon
 
 **Just one Node.js executable** to:
 - ✅ Manage Alibaba Cloud ACR repositories
 - ✅ Auto-sync GitHub repositories
 - ✅ Create friendly alias system
-- ✅ Run HTTP API server
-- ✅ Receive GitHub webhooks
+- ✅ Manage build rules and cleanup
 
 ## 🛒 Ingredients (Prerequisites)
 
@@ -42,8 +42,6 @@ Before starting, please prepare the following:
 
 | Ingredient | Purpose | Description |
 |------------|---------|-------------|
-| API Key | HTTP server authentication | Custom key for API access |
-| Webhook Secret | GitHub Webhook verification | Custom key for secure webhook reception |
 | Custom Namespace | Repository organization | Default is `asor`, customizable |
 
 ### Environment Requirements
@@ -81,9 +79,6 @@ asor config set github-token <your-github-pat>
 asor config set aliyun-access-key <your-access-key-id>
 asor config set aliyun-secret-key <your-access-key-secret>
 asor config set aliyun-region <region>  # e.g., cn-beijing
-
-# Configure API Key (required for HTTP server mode)
-asor config set api-key <your-api-key>
 ```
 
 ### Step 3: Add Repository
@@ -105,24 +100,9 @@ asor resolve myapp
 # Output: docker pull registry.cn-beijing.aliyuncs.com/asor/myapp:latest
 ```
 
-### Step 5: Start HTTP Server (Optional)
-
-```bash
-# Start the server daemon
-asor server --start
-
-# Check server status
-asor server --status
-
-# Stop the server
-asor server --stop
-```
-
 ## 📖 Features
 
-### Phase 1: CLI Swiss Knife Mode ✅
-
-**Complete** — Full-featured command line tool
+### CLI Swiss Knife Mode
 
 #### Configuration Management
 ```bash
@@ -152,52 +132,6 @@ asor rules <alias> remove <rule-id>  # Remove rule
 asor rules <alias> cleanup [--dry-run] [--force]  # Cleanup merged branches
 ```
 
-### Phase 2: HTTP Server Mode ✅
-
-**Complete** — REST API and Webhook integration
-
-#### Server Management
-```bash
-asor server --start              # Start HTTP server daemon
-asor server --stop               # Stop server
-asor server --status             # Check server status
-asor server --restart            # Restart server
-```
-
-#### REST API
-
-**Authentication**: All API endpoints (except health check) require `X-API-Key` header:
-
-```bash
-curl -H "X-API-Key: your-api-key" http://localhost:3000/v1/provision
-```
-
-**Available Endpoints**:
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check (no auth required) |
-| POST | `/v1/provision` | Create repository |
-| GET | `/v1/resolve?alias=<name>` | Resolve alias |
-| GET | `/v1/rules/:alias` | List rules |
-| POST | `/v1/rules/:alias` | Add rule |
-| DELETE | `/v1/rules/:alias/:ruleId` | Remove rule |
-| POST | `/v1/rules/:alias/cleanup` | Cleanup rules |
-| POST | `/v1/webhook/github` | GitHub Webhook |
-
-#### GitHub Webhook Setup
-
-1. Configure webhook secret:
-   ```bash
-   asor config set webhook-secret <your-secret>
-   ```
-
-2. In your GitHub repository, go to Settings → Webhooks → Add webhook:
-   - **Payload URL**: `http://your-server:3000/v1/webhook/github`
-   - **Content type**: `application/json`
-   - **Secret**: Your webhook secret
-   - **Events**: Select "Push" and "Branch or tag deletion"
-
 ## 🔧 Configuration
 
 Configuration is stored encrypted in `~/.asor/config.json` using AES-256-CBC.
@@ -211,40 +145,36 @@ Configuration is stored encrypted in `~/.asor/config.json` using AES-256-CBC.
 | `aliyun-secret-key` | Alibaba Cloud Access Key Secret | ✅ |
 | `aliyun-region` | Alibaba Cloud region (e.g., cn-beijing) | ✅ |
 | `default-namespace` | Default namespace | ❌ |
-| `api-key` | HTTP server API key | Server mode |
-| `webhook-secret` | GitHub Webhook secret | Webhook |
-| `server-port` | Server port (default: 3000) | ❌ |
-| `server-host` | Server host (default: 127.0.0.1) | ❌ |
 
 ## 🏗️ System Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   CLI Commands  │     │   HTTP Server   │     │  GitHub Webhook │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────▼─────────────┐
-                    │     Core Services         │
-                    │  ┌─────────────────────┐  │
-                    │  │   Orchestrator      │  │
-                    │  │   (Create repos)    │  │
-                    │  └─────────────────────┘  │
-                    │  ┌─────────────────────┐  │
-                    │  │   Resolver          │  │
-                    │  │   (Alias → ACR URL) │  │
-                    │  └─────────────────────┘  │
-                    │  ┌─────────────────────┐  │
-                    │  │   Rule Manager      │  │
-                    │  │   (Build rules)     │  │
-                    │  └─────────────────────┘  │
-                    └─────────────┬─────────────┘
-                                  │
-                    ┌─────────────▼─────────────┐
-                    │      Data Layer           │
-                    │   SQLite (sql.js)         │
-                    └───────────────────────────┘
+┌─────────────────┐
+│   CLI Commands  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   Core Services │
+│  ┌───────────┐  │
+│  │Orchestrator│  │
+│  │(Create repos)│ │
+│  └───────────┘  │
+│  ┌───────────┐  │
+│  │  Resolver │  │
+│  │(Alias resolution)│ │
+│  └───────────┘  │
+│  ┌───────────┐  │
+│  │Rule Manager│  │
+│  │(Build rules)│  │
+│  └───────────┘  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   Data Layer    │
+│   SQLite        │
+└─────────────────┘
 ```
 
 ## 🧪 Testing
@@ -267,10 +197,9 @@ npm test
 │   ├── cli/              # CLI commands
 │   │   ├── commands/     # Command implementations
 │   │   └── output.ts     # Output formatting
-│   ├── server/           # HTTP server
-│   │   ├── routes/       # API routes
-│   │   ├── middleware/   # Middleware
-│   │   └── daemon/       # Daemon management
+│   ├── clients/          # API clients
+│   │   ├── acr.ts        # Alibaba Cloud ACR
+│   │   └── github.ts     # GitHub
 │   ├── services/         # Core business logic
 │   │   ├── orchestrator.ts
 │   │   ├── resolver.ts
@@ -278,7 +207,6 @@ npm test
 │   ├── config/           # Configuration management
 │   └── db/               # Database layer
 ├── tests/                # Test files
-├── .planning/            # Project planning documents
 ├── README.md             # This document (Traditional Chinese)
 ├── README-sc.md          # Simplified Chinese documentation
 ├── README-en.md          # English documentation
@@ -288,16 +216,11 @@ npm test
 ## 📝 Changelog
 
 ### v1.0.0 (2026-03-19)
-- ✅ Phase 1: CLI Swiss Knife Mode
+- ✅ CLI Swiss Knife Mode
   - Encrypted credential management
   - Repository orchestration and management
   - Alias resolution
   - Rule management and cleanup
-- ✅ Phase 2: HTTP Server Mode
-  - Fastify HTTP server
-  - REST API endpoints
-  - Daemon lifecycle management
-  - GitHub Webhook integration with HMAC verification
 
 ## 📄 License
 

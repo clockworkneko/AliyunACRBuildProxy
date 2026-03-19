@@ -17,13 +17,13 @@ ASOR（ACR Smart Orchestrator & Resolver）是一款专为 GFW 内开发者设�
 - ❌ Kubernetes 集群
 - ❌ 复杂的 CI/CD 流水线
 - ❌ 多个工具协作
+- ❌ 后台服务器或守护进程
 
 **只需要一个 Node.js 可执行文件**，即可：
 - ✅ 管理阿里云 ACR 仓库
 - ✅ 自动同步 GitHub 仓库
 - ✅ 创建友好的别名系统
-- ✅ 运行 HTTP API 服务器
-- ✅ 接收 GitHub Webhook
+- ✅ 管理构建规则和清理
 
 ## 🛒 所需材料（Ingredients）
 
@@ -42,8 +42,6 @@ ASOR（ACR Smart Orchestrator & Resolver）是一款专为 GFW 内开发者设�
 
 | 材料 | 用途 | 说明 |
 |------|------|------|
-| API Key | HTTP 服务器认证 | 自定义密钥，用于 API 访问 |
-| Webhook Secret | GitHub Webhook 验证 | 自定义密钥，用于安全接收 Webhook |
 | 自定义命名空间 | 仓库组织 | 默认使用 `asor`，可自定义 |
 
 ### 环境要求
@@ -81,9 +79,6 @@ asor config set github-token <你的-GitHub-PAT>
 asor config set aliyun-access-key <你的-AccessKey-ID>
 asor config set aliyun-secret-key <你的-AccessKey-Secret>
 asor config set aliyun-region <区域>  # 例如：cn-beijing
-
-# 配置 API Key（HTTP 服务器模式需要）
-asor config set api-key <你的-API-密钥>
 ```
 
 ### 第三步：添加仓库
@@ -105,24 +100,9 @@ asor resolve 我的应用
 # 输出：docker pull registry.cn-beijing.aliyuncs.com/asor/我的应用:latest
 ```
 
-### 第五步：启动 HTTP 服务器（可选）
-
-```bash
-# 启动服务器守护进程
-asor server --start
-
-# 查看服务器状态
-asor server --status
-
-# 停止服务器
-asor server --stop
-```
-
 ## 📖 功能详情
 
-### 阶段一：CLI 瑞士刀模式 ✅
-
-**已完成** — 完整的命令行工具
+### CLI 瑞士刀模式
 
 #### 配置管理
 ```bash
@@ -152,52 +132,6 @@ asor rules <别名> remove <规则-ID>  # 删除规则
 asor rules <别名> cleanup [--dry-run] [--force]  # 清理已合并分支
 ```
 
-### 阶段二：HTTP 服务器模式 ✅
-
-**已完成** — REST API 与 Webhook 集成
-
-#### 服务器管理
-```bash
-asor server --start          # 启动 HTTP 服务器守护进程
-asor server --stop           # 停止服务器
-asor server --status         # 查看服务器状态
-asor server --restart        # 重启服务器
-```
-
-#### REST API
-
-**认证方式**: 所有 API 端点（除健康检查外）需要 `X-API-Key` 头：
-
-```bash
-curl -H "X-API-Key: 你的-API-密钥" http://localhost:3000/v1/provision
-```
-
-**可用端点**:
-
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/health` | 健康检查（无需认证） |
-| POST | `/v1/provision` | 创建仓库 |
-| GET | `/v1/resolve?alias=<别名>` | 解析别名 |
-| GET | `/v1/rules/:alias` | 列出规则 |
-| POST | `/v1/rules/:alias` | 添加规则 |
-| DELETE | `/v1/rules/:alias/:ruleId` | 删除规则 |
-| POST | `/v1/rules/:alias/cleanup` | 清理规则 |
-| POST | `/v1/webhook/github` | GitHub Webhook |
-
-#### GitHub Webhook 设置
-
-1. 配置 Webhook 密钥：
-   ```bash
-   asor config set webhook-secret <你的-密钥>
-   ```
-
-2. 在 GitHub 仓库设置 Webhook：
-   - **Payload URL**: `http://你的服务器:3000/v1/webhook/github`
-   - **Content type**: `application/json`
-   - **Secret**: 你的 Webhook 密钥
-   - **事件**: 选择 "Push" 和 "Branch or tag deletion"
-
 ## 🔧 配置说明
 
 配置存储在 `~/.asor/config.json`，使用 AES-256-CBC 加密。
@@ -211,40 +145,36 @@ curl -H "X-API-Key: 你的-API-密钥" http://localhost:3000/v1/provision
 | `aliyun-secret-key` | 阿里云 Access Key Secret | ✅ |
 | `aliyun-region` | 阿里云区域（如 cn-beijing） | ✅ |
 | `default-namespace` | 默认命名空间 | ❌ |
-| `api-key` | HTTP 服务器 API 密钥 | 服务器模式 |
-| `webhook-secret` | GitHub Webhook 密钥 | Webhook |
-| `server-port` | 服务器端口（默认 3000） | ❌ |
-| `server-host` | 服务器主机（默认 127.0.0.1） | ❌ |
 
 ## 🏗️ 系统架构
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   CLI 命令      │     │   HTTP 服务器   │     │  GitHub Webhook │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────▼─────────────┐
-                    │        核心服务           │
-                    │  ┌─────────────────────┐  │
-                    │  │   编排器            │  │
-                    │  │   (创建仓库)        │  │
-                    │  └─────────────────────┘  │
-                    │  ┌─────────────────────┐  │
-                    │  │   解析器            │  │
-                    │  │   (别名 → ACR URL)  │  │
-                    │  └─────────────────────┘  │
-                    │  ┌─────────────────────┐  │
-                    │  │   规则管理器        │  │
-                    │  │   (构建规则)        │  │
-                    │  └─────────────────────┘  │
-                    └─────────────┬─────────────┘
-                                  │
-                    ┌─────────────▼─────────────┐
-                    │        数据层             │
-                    │     SQLite (sql.js)       │
-                    └───────────────────────────┘
+┌─────────────────┐
+│   CLI 命令      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   核心服务      │
+│  ┌───────────┐  │
+│  │ 编排器    │  │
+│  │ (创建仓库)│  │
+│  └───────────┘  │
+│  ┌───────────┐  │
+│  │ 解析器    │  │
+│  │ (别名解析)│  │
+│  └───────────┘  │
+│  ┌───────────┐  │
+│  │ 规则管理器│  │
+│  │ (构建规则)│  │
+│  └───────────┘  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   数据层        │
+│  SQLite        │
+└─────────────────┘
 ```
 
 ## 🧪 测试
@@ -267,10 +197,9 @@ npm test
 │   ├── cli/              # CLI 命令
 │   │   ├── commands/     # 命令实现
 │   │   └── output.ts     # 输出格式化
-│   ├── server/           # HTTP 服务器
-│   │   ├── routes/       # API 路由
-│   │   ├── middleware/   # 中间件
-│   │   └── daemon/       # 守护进程管理
+│   ├── clients/          # API 客户端
+│   │   ├── acr.ts        # 阿里云 ACR
+│   │   └── github.ts     # GitHub
 │   ├── services/         # 核心业务逻辑
 │   │   ├── orchestrator.ts
 │   │   ├── resolver.ts
@@ -278,7 +207,6 @@ npm test
 │   ├── config/           # 配置管理
 │   └── db/               # 数据库层
 ├── tests/                # 测试文件
-├── .planning/            # 项目规划文档
 ├── README.md             # 本文档（繁体中文）
 ├── README-sc.md          # 简体中文文档
 ├── README-en.md          # 英文文档
@@ -288,16 +216,11 @@ npm test
 ## 📝 更新日志
 
 ### v1.0.0 (2026-03-19)
-- ✅ 阶段一：CLI 瑞士刀模式
+- ✅ CLI 瑞士刀模式
   - 加密凭证管理
   - 仓库编排与管理
   - 别名解析
   - 规则管理与清理
-- ✅ 阶段二：HTTP 服务器模式
-  - Fastify HTTP 服务器
-  - REST API 端点
-  - 守护进程生命周期管理
-  - GitHub Webhook 集成与 HMAC 验证
 
 ## 📄 授权
 

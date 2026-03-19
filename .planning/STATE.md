@@ -34,13 +34,14 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 | 2026-03-19 | Plan 01-02 完成 | SQLite、orchestrator、add/list/remove 命令 |
 | 2026-03-19 | Plan 01-03 完成 | resolver 服務、resolve 命令 |
 | 2026-03-19 | Plan 01-04 完成 | rules 命令、rule-manager 服務、cleanup 功能 |
+| 2026-03-19 | Plan 02-01 完成 | Fastify 框架、envelope 格式、API key 認證 |
 
 ## Current Phase
 
-**Phase 1: CLI 瑞士刀模式**
-- Status: Complete
-- Plans: 4/4 completed
-- Next step: `/gsd-plan-phase 02` to begin HTTP Server mode
+**Phase 2: HTTP Server 模式**
+- Status: In Progress
+- Plans: 1/4 completed (02-01 complete)
+- Next step: Execute Plan 02-02 (Daemon Lifecycle)
 
 ## Flags
 
@@ -61,9 +62,9 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 ## Stopped At
 
-Phase 1 complete. All 4 plans finished.
+Phase 2 in progress. Plan 02-01 complete. Ready for Plan 02-02.
 
-**Resume file:** .planning/phases/02-http-server/02-CONTEXT.md
+**Resume file:** .planning/phases/02-http-server/02-02-PLAN.md
 
 ---
 *State initialized: 2026-03-19*

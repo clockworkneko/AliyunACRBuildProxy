@@ -57,8 +57,10 @@ describe('Server Entry Point', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json();
-      expect(body.status).toBe('ok');
-      expect(body.timestamp).toBeDefined();
+      // Health check is wrapped in envelope format by the envelope plugin
+      expect(body.success).toBe(true);
+      expect(body.data.status).toBe('ok');
+      expect(body.data.timestamp).toBeDefined();
     });
 
     it('should close connections gracefully on shutdown', async () => {

@@ -5,6 +5,7 @@ import { listCommand } from './commands/list.js';
 import { removeCommand } from './commands/remove.js';
 import { resolveCommand } from './commands/resolve.js';
 import { rulesCommand } from './commands/rules.js';
+import { serverCommand } from './commands/server.js';
 
 const program = new Command();
 
@@ -19,6 +20,7 @@ program
   .addCommand(listCommand)
   .addCommand(removeCommand)
   .addCommand(resolveCommand)
-  .addCommand(rulesCommand);
+  .addCommand(rulesCommand)
+  .addCommand(serverCommand);
 
 program.parse();

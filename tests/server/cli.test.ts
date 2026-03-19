@@ -1,20 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Command } from 'commander';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { existsSync, unlinkSync, writeFileSync } from 'fs';
-import { serverCommand } from '../../src/cli/commands/server.js';
 import { DaemonManager } from '../../src/server/daemon/manager.js';
+import { serverCommand } from '../../src/cli/commands/server.js';
 import * as output from '../../src/cli/output.js';
+
+// Store for mock functions that will be used in tests
+const mockFns = {
+  start: vi.fn(),
+  stop: vi.fn(),
+  status: vi.fn(),
+  restart: vi.fn(),
+};
 
 // Mock DaemonManager
 vi.mock('../../src/server/daemon/manager.js', () => {
   return {
     DaemonManager: vi.fn().mockImplementation(() => ({
-      start: vi.fn(),
-      stop: vi.fn(),
-      status: vi.fn(),
-      restart: vi.fn(),
+      start: mockFns.start,
+      stop: mockFns.stop,
+      status: mockFns.status,
+      restart: mockFns.restart,
     })),
   };
 });
@@ -30,21 +35,15 @@ vi.mock('../../src/cli/output.js', () => ({
 }));
 
 describe('CLI Server Commands', () => {
-  let mockManager: {
-    start: ReturnType<typeof vi.fn>;
-    stop: ReturnType<typeof vi.fn>;
-    status: ReturnType<typeof vi.fn>;
-    restart: ReturnType<typeof vi.fn>;
-  };
-
   const mockOutput = vi.mocked(output);
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Get the mock instance
-    const MockDaemonManager = vi.mocked(DaemonManager);
-    mockManager = new MockDaemonManager() as unknown as typeof mockManager;
+    // Clear mock call counts but keep implementations
+    mockFns.start.mockClear();
+    mockFns.stop.mockClear();
+    mockFns.status.mockClear();
+    mockFns.restart.mockClear();
   });
 
   afterEach(() => {
@@ -53,69 +52,79 @@ describe('CLI Server Commands', () => {
 
   describe('server --start', () => {
     it('should start daemon and show success message', async () => {
-      mockManager.start.mockResolvedValueOnce({ pid: 12345, port: 3000, host: '127.0.0.1' });
+      mockFns.start.mockResolvedValueOnce({ pid: 12345, port: 3000, host: '127.0.0.1' });
 
-      // Create a test program and add the server command
       const program = new Command();
-      program.addCommand(serverCommand);
+      program.name('asor').addCommand(serverCommand);
 
-      // Simulate command execution
-      await program.parseAsync(['node', 'test', 'server', '--start'], { from: 'user' });
+      await program.parseAsync(['node', 'asor', 'server', '--start'], { from: 'node' });
 
-      expect(mockManager.start).toHaveBeenCalled();
+      expect(mockFns.start).toHaveBeenCalled();
       expect(mockOutput.success).toHaveBeenCalledWith('Server started on 127.0.0.1:3000 (PID: 12345)');
     });
 
     it('should show error when already running', async () => {
-      mockManager.start.mockRejectedValueOnce(new Error('Server already running (PID: 54321)'));
+      mockFns.start.mockRejectedValueOnce(new Error('Server already running (PID: 54321)'));
 
       const program = new Command();
-      program.addCommand(serverCommand);
-      program.exitOverride(); // Prevent process.exit from killing test
+      program.name('asor').addCommand(serverCommand);
+      program.exitOverride();
+
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit');
+      });
 
       try {
-        await program.parseAsync(['node', 'test', 'server', '--start'], { from: 'user' });
+        await program.parseAsync(['node', 'asor', 'server', '--start'], { from: 'node' });
       } catch {
         // Expected - process.exit(1)
       }
 
       expect(mockOutput.error).toHaveBeenCalledWith('Server already running (PID: 54321)');
+
+      exitSpy.mockRestore();
     });
   });
 
   describe('server --stop', () => {
     it('should stop daemon and show success message', async () => {
-      mockManager.stop.mockResolvedValueOnce(undefined);
+      mockFns.stop.mockResolvedValueOnce(undefined);
 
       const program = new Command();
-      program.addCommand(serverCommand);
+      program.name('asor').addCommand(serverCommand);
 
-      await program.parseAsync(['node', 'test', 'server', '--stop'], { from: 'user' });
+      await program.parseAsync(['node', 'asor', 'server', '--stop'], { from: 'node' });
 
-      expect(mockManager.stop).toHaveBeenCalled();
+      expect(mockFns.stop).toHaveBeenCalled();
       expect(mockOutput.success).toHaveBeenCalledWith('Server stopped');
     });
 
     it('should show error when not running', async () => {
-      mockManager.stop.mockRejectedValueOnce(new Error('Server is not running'));
+      mockFns.stop.mockRejectedValueOnce(new Error('Server is not running'));
 
       const program = new Command();
-      program.addCommand(serverCommand);
+      program.name('asor').addCommand(serverCommand);
       program.exitOverride();
 
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit');
+      });
+
       try {
-        await program.parseAsync(['node', 'test', 'server', '--stop'], { from: 'user' });
+        await program.parseAsync(['node', 'asor', 'server', '--stop'], { from: 'node' });
       } catch {
         // Expected
       }
 
       expect(mockOutput.error).toHaveBeenCalledWith('Server is not running');
+
+      exitSpy.mockRestore();
     });
   });
 
   describe('server --status', () => {
     it('should show running status when server is running', async () => {
-      mockManager.status.mockReturnValueOnce({
+      mockFns.status.mockReturnValueOnce({
         running: true,
         pid: 12345,
         port: 3000,
@@ -123,37 +132,37 @@ describe('CLI Server Commands', () => {
       });
 
       const program = new Command();
-      program.addCommand(serverCommand);
+      program.name('asor').addCommand(serverCommand);
 
-      await program.parseAsync(['node', 'test', 'server', '--status'], { from: 'user' });
+      await program.parseAsync(['node', 'asor', 'server', '--status'], { from: 'node' });
 
-      expect(mockManager.status).toHaveBeenCalled();
+      expect(mockFns.status).toHaveBeenCalled();
       expect(mockOutput.info).toHaveBeenCalledWith('Server running (PID: 12345, port: 3000)');
     });
 
     it('should show not running status when server is stopped', async () => {
-      mockManager.status.mockReturnValueOnce({ running: false });
+      mockFns.status.mockReturnValueOnce({ running: false });
 
       const program = new Command();
-      program.addCommand(serverCommand);
+      program.name('asor').addCommand(serverCommand);
 
-      await program.parseAsync(['node', 'test', 'server', '--status'], { from: 'user' });
+      await program.parseAsync(['node', 'asor', 'server', '--status'], { from: 'node' });
 
-      expect(mockManager.status).toHaveBeenCalled();
+      expect(mockFns.status).toHaveBeenCalled();
       expect(mockOutput.info).toHaveBeenCalledWith('Server is not running');
     });
   });
 
   describe('server --restart', () => {
     it('should restart daemon and show success message', async () => {
-      mockManager.restart.mockResolvedValueOnce({ pid: 67890, port: 3000, host: '127.0.0.1' });
+      mockFns.restart.mockResolvedValueOnce({ pid: 67890, port: 3000, host: '127.0.0.1' });
 
       const program = new Command();
-      program.addCommand(serverCommand);
+      program.name('asor').addCommand(serverCommand);
 
-      await program.parseAsync(['node', 'test', 'server', '--restart'], { from: 'user' });
+      await program.parseAsync(['node', 'asor', 'server', '--restart'], { from: 'node' });
 
-      expect(mockManager.restart).toHaveBeenCalled();
+      expect(mockFns.restart).toHaveBeenCalled();
       expect(mockOutput.success).toHaveBeenCalledWith('Server restarted on 127.0.0.1:3000 (PID: 67890)');
     });
   });
@@ -161,14 +170,11 @@ describe('CLI Server Commands', () => {
   describe('server (no options)', () => {
     it('should show help when no options provided', async () => {
       const program = new Command();
-      program.addCommand(serverCommand);
+      program.name('asor').addCommand(serverCommand);
       program.exitOverride();
 
-      try {
-        await program.parseAsync(['node', 'test', 'server'], { from: 'user' });
-      } catch {
-        // Expected - help output
-      }
+      // No error expected - just outputs help
+      await program.parseAsync(['node', 'asor', 'server'], { from: 'node' });
 
       // No specific assertion needed - just verify it doesn't throw unexpectedly
     });

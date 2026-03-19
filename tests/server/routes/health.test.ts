@@ -56,8 +56,10 @@ describe('Health Endpoint', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json();
-      expect(body.status).toBe('ok');
-      expect(body.timestamp).toBeDefined();
+      // Response is wrapped in envelope format
+      expect(body.success).toBe(true);
+      expect(body.data.status).toBe('ok');
+      expect(body.data.timestamp).toBeDefined();
     });
 
     it('should return valid timestamp in ISO format', async () => {
@@ -68,8 +70,10 @@ describe('Health Endpoint', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json();
+      // Response is wrapped in envelope format
+      expect(body.success).toBe(true);
       // Verify timestamp is valid ISO format
-      expect(() => new Date(body.timestamp)).not.toThrow();
+      expect(() => new Date(body.data.timestamp)).not.toThrow();
     });
   });
 });

@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { buildApp } from '../../../src/server/app.js';
+import { configStore } from '../../../src/config/store.js';
+import provisionRoutes from '../../../src/server/routes/v1/provision.js';
 import type { FastifyInstance } from 'fastify';
 
 // Mock the orchestrator service
@@ -7,13 +9,26 @@ vi.mock('../../../src/services/orchestrator.js', () => ({
   provisionRepo: vi.fn(),
 }));
 
+// Mock configStore
+vi.mock('../../../src/config/store.js', () => ({
+  configStore: {
+    get: vi.fn(),
+    set: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(),
+  },
+}));
+
 import { provisionRepo } from '../../../src/services/orchestrator.js';
 
 describe('POST /v1/provision', () => {
   let app: FastifyInstance;
+  const mockConfigStore = vi.mocked(configStore);
 
   beforeAll(async () => {
     app = await buildApp({ logger: false });
+    // Manually register the route since autoload is disabled in test mode
+    await app.register(provisionRoutes, { prefix: '/v1' });
   });
 
   afterAll(async () => {
@@ -22,6 +37,11 @@ describe('POST /v1/provision', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: API key is configured
+    mockConfigStore.get.mockImplementation((key: string) => {
+      if (key === 'api-key') return 'test-api-key';
+      return undefined;
+    });
   });
 
   it('should provision a new repo with valid data', async () => {
@@ -31,7 +51,7 @@ describe('POST /v1/provision', () => {
       dockerPullCommand: 'docker pull registry.cn-beijing.aliyuncs.com/asor/nginx-latest:latest',
     };
 
-    vi.mocked(provisionRepo).mockResolvedValue(mockResult);
+    vi.mocked(provisionRepo).mockResolvedValue(mockResult as any);
 
     const response = await app.inject({
       method: 'POST',

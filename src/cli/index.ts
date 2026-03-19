@@ -4,6 +4,7 @@ import { addCommand } from './commands/add.js';
 import { listCommand } from './commands/list.js';
 import { removeCommand } from './commands/remove.js';
 import { resolveCommand } from './commands/resolve.js';
+import { rulesCommand } from './commands/rules.js';
 
 const program = new Command();
 
@@ -17,6 +18,7 @@ program
   .addCommand(addCommand)
   .addCommand(listCommand)
   .addCommand(removeCommand)
-  .addCommand(resolveCommand);
+  .addCommand(resolveCommand)
+  .addCommand(rulesCommand);
 
 program.parse();

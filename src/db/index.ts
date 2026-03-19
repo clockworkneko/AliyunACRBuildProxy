@@ -220,3 +220,64 @@ export function getRulesByRepoId(repoId: number): Rule[] {
   stmt.free();
   return results;
 }
+
+export function deleteRule(ruleId: number): boolean {
+  const database = db;
+  if (!database) throw new Error('Database not initialized');
+
+  const stmt = database.prepare('DELETE FROM rules WHERE id = ?');
+  stmt.bind([ruleId]);
+  stmt.step();
+  const changes = database.getRowsModified();
+  stmt.free();
+
+  saveDb();
+  return changes > 0;
+}
+
+export function getAllRules(): Rule[] {
+  const database = db;
+  if (!database) throw new Error('Database not initialized');
+
+  const results: Rule[] = [];
+  const stmt = database.prepare('SELECT * FROM rules ORDER BY created_at DESC');
+
+  while (stmt.step()) {
+    const row = stmt.get();
+    results.push({
+      id: row[0] as number,
+      repo_id: row[1] as number,
+      branch_pattern: row[2] as string,
+      tag_template: row[3] as string,
+      acr_rule_id: row[4] as string | null,
+      created_at: row[5] as string,
+    });
+  }
+
+  stmt.free();
+  return results;
+}
+
+export function getRuleById(ruleId: number): Rule | null {
+  const database = db;
+  if (!database) throw new Error('Database not initialized');
+
+  const stmt = database.prepare('SELECT * FROM rules WHERE id = ?');
+  stmt.bind([ruleId]);
+
+  if (stmt.step()) {
+    const row = stmt.get();
+    stmt.free();
+    return {
+      id: row[0] as number,
+      repo_id: row[1] as number,
+      branch_pattern: row[2] as string,
+      tag_template: row[3] as string,
+      acr_rule_id: row[4] as string | null,
+      created_at: row[5] as string,
+    };
+  }
+
+  stmt.free();
+  return null;
+}

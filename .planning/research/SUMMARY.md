@@ -1,131 +1,90 @@
 # Project Research Summary
 
 **Project:** ASOR (ACR Smart Orchestrator & Resolver)
-**Domain:** Container Registry Automation
+**Domain:** Container Registry Automation / CLI Tool
 **Researched:** 2026-03-19
 **Confidence:** HIGH
 
 ## Executive Summary
 
-ASOR 是一個容器映像倉庫自動化系統，專為解決中國開發者面臨的 GFW 和 Docker Hub 存取問題而設計。該系統透過自動化編排阿里雲 ACR，將 GitHub 程式碼轉化為國內可高速拉取的容器映像，並提供別名解析機制簡化部署流程。
+ASOR CLI 是一個輕量級命令列工具，專為解決中國開發者面臨的 GFW 和 Docker Hub 存取問題而設計。使用者透過簡單的命令列操作即可掛載 GitHub 倉庫到阿里雲 ACR，並透過別名快速查詢映像路徑。
 
-建議採用 TypeScript + Node.js + Fastify + PostgreSQL 的技術棧，這是目前建構此類 API 密集型後端服務的業界標準。主要風險在於憑證安全管理和 GitHub API 速率限制，可透過加密儲存和快取策略來緩解。
+建議採用 TypeScript + Node.js + Commander.js + SQLite 的輕量級技術棧。單一執行檔分發，無需額外基礎設施。兩個核心命令：`asor add` 管理倉庫，`asor resolve` 查詢路徑。
 
 ## Key Findings
 
 ### Recommended Stack
 
-建議使用 TypeScript 生態系統建構，配合 Fastify 提供高效能 API 層，PostgreSQL 處理資料持久化。這個組合在處理複雜 API 整合時提供類型安全和開發效率。
-
 **Core technologies:**
-- TypeScript 5.x：類型安全，適合複雜 API 整合
-- Node.js 20 LTS：原生非同步 I/O，阿里雲 SDK 支援良好
-- Fastify 5.x：高效能 Web 框架，內建驗證
-- PostgreSQL 16：ACID 合規，JSONB 支援彈性規則儲存
+- TypeScript 5.x：類型安全，CLI 工具生態豐富
+- Node.js 20 LTS：CLI 工具標準執行環境
+- Commander.js 12.x：CLI 框架
+- SQLite：零配置，單一檔案，可攜帶
+
+**CLI Libraries:**
+- chalk：終端輸出著色
+- ora：spinner 動畫
+- clipboardy：剪貼簿操作
+- conf：設定儲存
 
 ### Expected Features
 
-**Must have (table stakes):**
-- 安全憑證儲存 — 使用者預期系統安全處理敏感金鑰
-- GitHub 倉庫掛載 — 核心價值，一鍵 ACR 設定
-- 別名轉 URL 解析 — 核心價值，簡化部署
-- 構建規則管理 — CI/CD 必需，處理 10 條規則限制
-
-**Should have (competitive):**
-- 智慧規則清理 — 感知 GitHub 分支狀態，自動清理已合併分支規則
-- Webhook 通知 — 構建狀態可見性
-
-**Defer (v2+):**
-- 302 重定向模式 — 部署複雜度高
-- 多租戶隔離 — SaaS 使用案例
+**Must have:**
+- `asor config` — 設定憑證
+- `asor add <url> --alias <name>` — 掛載倉庫
+- `asor resolve <alias>` — 查詢映像路徑
+- `asor rules <alias>` — 管理構建規則
 
 ### Architecture Approach
 
-採用三層架構：API Layer 處理 HTTP 路由，Service Layer 包含業務邏輯，Data Layer 管理持久化。背景任務使用 BullMQ 處理規則清理等非同步操作。
+命令列架構，服務層設計為可與未來 Server 模式共用。SQLite 儲存倉庫映射，conf 套件儲存憑證。
 
 **Major components:**
-1. Orchestrator Service — 管理 ACR 倉庫和 GitHub webhook 整合
-2. Resolver Service — 別名查詢和 URL 生成
-3. Rule Manager — 10 條規則限制的智慧管理
+1. CLI Entry (Commander.js) — 參數解析和路由
+2. Command Layer — 各命令實作
+3. Service Layer — 業務邏輯（可共用）
 
 ### Critical Pitfalls
 
-1. **憑證在日誌中外洩** — 絕不記錄敏感欄位，實作憑證清理中介軟體
-2. **規則管理中的競態條件** — 使用樂觀鎖定和資料庫交易
-3. **GitHub Webhook 認證繞過** — 驗證 X-Hub-Signature-256 簽章
+1. **憑證明文儲存** — 加密儲存
+2. **無反饋的長時間操作** — 使用 spinner
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+### Phase 1: CLI 瑞士刀模式
+**Rationale:** 先實作最簡單直接的使用方式
+**Delivers:** 完整的 CLI 工具，可直接操作 ACR
+**Addresses:** CRED-01~05, CLIR-01~06, CLIQ-01~04, CLRU-01~04
 
-### Phase 1: 憑證管理與基礎 API
-**Rationale:** 安全憑證儲存是所有後續功能的基礎，必須先建立信任
-**Delivers:** 憑證加密儲存、基本 API 框架、健康檢查端點
-**Addresses:** 安全憑證儲存功能
-**Avoids:** 憑證外洩、區域不匹配問題
-
-### Phase 2: GitHub 整合與倉庫掛載
-**Rationale:** 需要憑證管理完成後才能進行 GitHub 和 ACR 操作
-**Delivers:** GitHub PAT 驗證、ACR 倉庫自動建立、基本 webhook 處理
-**Uses:** @octokit/rest、@alicloud/acr20221201 SDK
-**Implements:** Orchestrator Service
-**Avoids:** Webhook 認證繞過漏洞
-
-### Phase 3: 構建規則管理
-**Rationale:** 在倉庫建立後管理構建規則，處理 10 條限制
-**Delivers:** 規則 CRUD API、基本限制處理
-**Implements:** Rule Manager
-**Avoids:** 競態條件問題
-
-### Phase 4: 別名解析與智慧清理
-**Rationale:** 完整價值交付，智慧清理需要 GitHub 分支狀態整合
-**Delivers:** 別名解析 API、智慧規則清理背景任務、狀態端點
-**Implements:** Resolver Service、背景任務處理
-**Avoids:** 過時映射問題
+### Phase 2: HTTP Server 模式
+**Rationale:** CI/CD 整合需求
+**Delivers:** REST API、GitHub webhook
+**Addresses:** SERV-01~05
 
 ### Phase Ordering Rationale
 
-- 憑證管理必須第一，因為所有後續功能都需要憑證
-- GitHub 整合在憑證後，因為需要 PAT 和 AK/SK
-- 規則管理在倉庫建立後，因為規則屬於倉庫
-- 智慧清理最後，因為需要完整的 GitHub 整合才能感知分支狀態
+- CLI 模式是最小可行產品，驗證核心邏輯
+- Server 模式需要更多基礎設施考量
+- 服務層設計為共用，降低 Phase 2 工作量
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2:** 阿里雲 ACR OpenAPI 詳細文件需要查閱，確認倉庫建立和規則設定的具體參數
-- **Phase 3:** 10 條規則限制的邊界案例需要驗證
+- **Phase 1:** 阿里雲 ACR OpenAPI 詳細文件
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1:** 標準的憑證加密儲存模式，文件充足
-- **Phase 4:** 別名解析是標準的查詢服務模式
+- **Phase 1:** CLI 工具標準模式
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | TypeScript + Node.js 是此類系統的業界標準 |
-| Features | HIGH | 從 idea 文件中提取的需求明確 |
-| Architecture | HIGH | 標準三層架構適合此類 API 服務 |
-| Pitfalls | HIGH | 常見的安全和並行問題，解決方案明確 |
+| Stack | HIGH | Node.js CLI 是成熟模式 |
+| Features | HIGH | 需求明確 |
+| Architecture | HIGH | 標準 CLI 架構 |
+| Pitfalls | HIGH | 常見問題 |
 
 **Overall confidence:** HIGH
-
-### Gaps to Address
-
-- 阿里雲 ACR 海外構建節點的具體配置選項需要在 Phase 2 規劃時查閱官方文件
-- GitHub webhook 簽章驗證的具體實作細節需要在 Phase 2 確認
-
-## Sources
-
-### Primary (HIGH confidence)
-- 阿里雲 ACR API 文件 — 倉庫和規則管理 API
-- GitHub REST API 文件 — webhook 和分支狀態端點
-- Node.js 安全最佳實踐 — 憑證處理
-
-### Secondary (MEDIUM confidence)
-- Fastify 最佳實踐 — API 架構模式
-- BullMQ 文件 — 背景任務處理
 
 ---
 *Research completed: 2026-03-19*

@@ -9,82 +9,70 @@
 
 ### 憑證管理 (CRED)
 
-- [ ] **CRED-01**: 使用者可以安全地註冊 GitHub PAT（Personal Access Token）
-- [ ] **CRED-02**: 使用者可以安全地註冊阿里雲 AK/SK（AccessKey ID/Secret）
-- [ ] **CRED-03**: 憑證在資料庫中加密儲存，使用業界標準加密演算法
-- [ ] **CRED-04**: 系統驗證憑證有效性（GitHub PAT 權限檢查、阿里雲 AK/SK 存取測試）
-- [ ] **CRED-05**: 憑證支援指定阿里雲區域（如 cn-hongkong、cn-shanghai）
-- [ ] **CRED-06**: 日誌中不自動記錄敏感憑證資訊
+- [ ] **CRED-01**: 使用者可以透過 CLI 設定 GitHub PAT（儲存於本地設定檔）
+- [ ] **CRED-02**: 使用者可以透過 CLI 設定阿里雲 AK/SK（儲存於本地設定檔）
+- [ ] **CRED-03**: 憑證在本地設定檔中加密儲存
+- [ ] **CRED-04**: CLI 可驗證憑證有效性
+- [ ] **CRED-05**: 憑證支援指定阿里雲區域
 
-### GitHub 整合 (GITH)
+### CLI 倉庫管理 (CLIR)
 
-- [ ] **GITH-01**: 使用者可以透過 GitHub URL 掛載倉庫到系統
-- [ ] **GITH-02**: 系統自動在阿里雲 ACR 建立對應的容器映像倉庫
-- [ ] **GITH-03**: 系統自動設定 GitHub webhook 以觸發構建
-- [ ] **GITH-04**: Webhook 端點驗證 GitHub 簽章（X-Hub-Signature-256）
-- [ ] **GITH-05**: 系統自動配置預設構建規則（main 分支 -> latest 標籤）
-- [ ] **GITH-06**: 掛載完成後自動生成 docker pull 指南文件
+- [ ] **CLIR-01**: 使用者可執行 `asor add <github-url> --alias <name>` 掛載倉庫
+- [ ] **CLIR-02**: CLI 自動在阿里雲 ACR 建立對應倉庫
+- [ ] **CLIR-03**: CLI 自動配置預設構建規則（main -> latest）
+- [ ] **CLIR-04**: CLI 顯示掛載結果（ACR URL、docker pull 命令）
+- [ ] **CLIR-05**: 使用者可執行 `asor list` 列出所有已掛載倉庫
+- [ ] **CLIR-06**: 使用者可執行 `asor remove <alias>` 移除倉庫映射
 
-### 構建規則管理 (RULE)
+### CLI 別名查詢 (CLIQ)
 
-- [ ] **RULE-01**: 使用者可以查看倉庫的所有構建規則
-- [ ] **RULE-02**: 使用者可以新增自訂構建規則（分支 -> 標籤映射）
-- [ ] **RULE-03**: 使用者可以刪除現有構建規則
-- [ ] **RULE-04**: 系統在達到 10 條規則限制時發出警告
-- [ ] **RULE-05**: 系統防止在已滿 10 條規則時新增規則（除非先刪除）
+- [ ] **CLIQ-01**: 使用者可執行 `asor resolve <alias>` 查詢 ACR 映像路徑
+- [ ] **CLIQ-02**: 使用者可執行 `asor resolve <alias>:<tag>` 查詢特定標籤
+- [ ] **CLIQ-03**: CLI 輸出完整 docker pull 命令
+- [ ] **CLIQ-04**: 使用者可執行 `asor resolve <alias> --copy` 複製路徑到剪貼簿
 
-### 別名解析 (RESO)
+### CLI 規則管理 (CLRU)
 
-- [ ] **RESO-01**: 使用者可以為倉庫定義簡短別名（如 "auth-api"）
-- [ ] **RESO-02**: 使用者可以透過別名查詢完整的 ACR 映像路徑
-- [ ] **RESO-03**: 解析 API 支援指定標籤（tag）參數
-- [ ] **RESO-04**: 解析 API 回傳完整的 docker pull 命令
-- [ ] **RESO-05**: 系統驗證別名格式（字母數字、連字符、底線）
-
-### 智慧清理 (CLEAN)
-
-- [ ] **CLEAN-01**: 系統定期檢查 GitHub 分支狀態
-- [ ] **CLEAN-02**: 系統自動刪除已合併分支對應的構建規則
-- [ ] **CLEAN-03**: 系統記錄清理操作日誌供審計
-- [ ] **CLEAN-04**: 清理前檢查規則是否仍在使用中
+- [ ] **CLRU-01**: 使用者可執行 `asor rules <alias>` 列出構建規則
+- [ ] **CLRU-02**: 使用者可執行 `asor rules <alias> add <branch>:<tag>` 新增規則
+- [ ] **CLRU-03**: 使用者可執行 `asor rules <alias> remove <rule-id>` 刪除規則
+- [ ] **CLRU-04**: 使用者可執行 `asor rules <alias> cleanup` 清理已合併分支規則
 
 ## v2 Requirements
 
-延後至未來版本。已追蹤但不在當前路線圖中。
+延後至未來版本。
 
-### 多區域支援 (MREG)
+### HTTP Server 模式 (SERV)
 
-- **MREG-01**: 支援同一別名映射到多個阿里雲區域
-- **MREG-02**: 自動選擇離使用者最近的區域
+- **SERV-01**: 啟動 HTTP 伺服器提供 REST API
+- **SERV-02**: 提供 `/provision` 端點掛載倉庫
+- **SERV-03**: 提供 `/resolve` 端點查詢別名
+- **SERV-04**: 提供 `/rules` 端點管理規則
+- **SERV-05**: GitHub webhook 端點接收事件
 
-### Webhook 通知 (NOTIF)
+### 通知 (NOTIF)
 
 - **NOTIF-01**: 構建成功/失敗時發送通知
-- **NOTIF-02**: 支援 Slack webhook 整合
-- **NOTIF-03**: 支援自訂 webhook 端點
 
-### 302 重定向模式 (REDIR)
+### 多區域 (MREG)
 
-- **REDIR-01**: 支援 HTTP 302 重定向到實際映像位址
-- **REDIR-02**: 處理 Docker registry 協議的認證流程
+- **MREG-01**: 支援同一別名映射到多個區域
 
 ## Out of Scope
 
-明確排除。已記錄以防止範圍蔓延。
+明確排除。
 
 | Feature | Reason |
 |---------|--------|
-| 映像層代理/快取 | 高頻寬成本、延遲、單點故障 |
-| 直接映像資料中轉 | 系統定位為元資料管理，非資料代理 |
-| GitLab/Bitbucket 支援 | 專注 GitHub 整合，其他平台延後 |
-| Web UI 規則編輯器 | 與自動清理邏輯衝突，優先提供 API |
-| OAuth 登入 | PAT 認證對 v1 已足夠 |
-| 行動應用程式 | Web-first，行動端延後 |
-| 多租戶隔離 | SaaS 模式延後至 v2+ |
+| 映像資料代理 | 零頻寬模式，僅處理位址 |
+| GitLab/Bitbucket 支援 | 專注 GitHub |
+| Web UI | 優先 CLI |
+| OAuth 登入 | PAT 認證已足夠 |
+| 多租戶 | 單一使用者/小團隊 |
 
 ## Traceability
 
-哪些階段涵蓋哪些需求。在路線圖建立時更新。
+哪些階段涵蓋哪些需求。
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -93,33 +81,31 @@
 | CRED-03 | Phase 1 | Pending |
 | CRED-04 | Phase 1 | Pending |
 | CRED-05 | Phase 1 | Pending |
-| CRED-06 | Phase 1 | Pending |
-| GITH-01 | Phase 2 | Pending |
-| GITH-02 | Phase 2 | Pending |
-| GITH-03 | Phase 2 | Pending |
-| GITH-04 | Phase 2 | Pending |
-| GITH-05 | Phase 2 | Pending |
-| GITH-06 | Phase 2 | Pending |
-| RULE-01 | Phase 3 | Pending |
-| RULE-02 | Phase 3 | Pending |
-| RULE-03 | Phase 3 | Pending |
-| RULE-04 | Phase 3 | Pending |
-| RULE-05 | Phase 3 | Pending |
-| RESO-01 | Phase 4 | Pending |
-| RESO-02 | Phase 4 | Pending |
-| RESO-03 | Phase 4 | Pending |
-| RESO-04 | Phase 4 | Pending |
-| RESO-05 | Phase 4 | Pending |
-| CLEAN-01 | Phase 4 | Pending |
-| CLEAN-02 | Phase 4 | Pending |
-| CLEAN-03 | Phase 4 | Pending |
-| CLEAN-04 | Phase 4 | Pending |
+| CLIR-01 | Phase 1 | Pending |
+| CLIR-02 | Phase 1 | Pending |
+| CLIR-03 | Phase 1 | Pending |
+| CLIR-04 | Phase 1 | Pending |
+| CLIR-05 | Phase 1 | Pending |
+| CLIR-06 | Phase 1 | Pending |
+| CLIQ-01 | Phase 1 | Pending |
+| CLIQ-02 | Phase 1 | Pending |
+| CLIQ-03 | Phase 1 | Pending |
+| CLIQ-04 | Phase 1 | Pending |
+| CLRU-01 | Phase 1 | Pending |
+| CLRU-02 | Phase 1 | Pending |
+| CLRU-03 | Phase 1 | Pending |
+| CLRU-04 | Phase 1 | Pending |
+| SERV-01 | Phase 2 | Pending |
+| SERV-02 | Phase 2 | Pending |
+| SERV-03 | Phase 2 | Pending |
+| SERV-04 | Phase 2 | Pending |
+| SERV-05 | Phase 2 | Pending |
 
 **Coverage:**
-- v1 requirements: 26 total
-- Mapped to phases: 26
+- v1 requirements: 19 total
+- Mapped to phases: 24
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 after prioritizing CLI mode*

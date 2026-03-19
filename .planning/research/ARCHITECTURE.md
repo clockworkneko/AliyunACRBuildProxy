@@ -1,6 +1,6 @@
 # Architecture Research
 
-**Domain:** Container Registry Automation / ACR Orchestrator
+**Domain:** Container Registry Automation / CLI Tool
 **Researched:** 2026-03-19
 **Confidence:** HIGH
 
@@ -10,24 +10,31 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        API Layer                              │
+│                        CLI Entry                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ commander.js (parse args, route to commands)        │    │
+│  └─────────────────────────┬───────────────────────────┘    │
+│                            │                                 │
+├────────────────────────────┴────────────────────────────────┤
+│                        Command Layer                         │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
-│  │/provision│  │/resolve │  │/rules   │  │/health  │        │
+│  │ Config  │  │  Add    │  │ Resolve │  │  Rules  │        │
+│  │ Command │  │ Command │  │ Command │  │ Command │        │
 │  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘        │
 │       │            │            │            │              │
 ├───────┴────────────┴────────────┴────────────┴──────────────┤
-│                        Service Layer                          │
+│                        Service Layer                         │
 │  ┌──────────────────┐  ┌──────────────────┐                 │
 │  │ Orchestrator     │  │ Resolver         │                 │
 │  │ (ACR + GitHub)   │  │ (Alias lookup)   │                 │
 │  └────────┬─────────┘  └────────┬─────────┘                 │
 │           │                     │                             │
 ├───────────┴─────────────────────┴────────────────────────────┤
-│                        Data Layer                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                   │
-│  │PostgreSQL│  │  Redis   │  │BullMQ    │                   │
-│  │(Primary) │  │ (Cache)  │  │ (Jobs)   │                   │
-│  └──────────┘  └──────────┘  └──────────┘                   │
+│                        Data Layer                            │
+│  ┌──────────┐  ┌──────────┐                                 │
+│  │ SQLite   │  │  Conf    │                                 │
+│  │ (Repo)   │  │ (Cred)   │                                 │
+│  └──────────┘  └──────────┘                                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -35,158 +42,194 @@
 
 | Component | Responsibility | Typical Implementation |
 |-----------|----------------|------------------------|
-| API Layer | 路由請求、驗證輸入、認證 | Fastify 路由配合 Zod schemas |
-| Orchestrator Service | 管理 ACR 倉庫、GitHub webhooks | 服務類別配合 SDK 客戶端 |
-| Resolver Service | 別名查詢、URL 生成 | 簡單查詢服務 |
-| Rule Manager | 10 條規則限制處理、清理 | 背景任務處理器 |
-| Credential Store | 安全金鑰儲存 | 加密資料庫欄位 |
+| CLI Entry | 解析參數、路由到命令 | Commander.js |
+| Command Layer | 執行命令邏輯、處理輸出 | 命令類別 |
+| Orchestrator Service | 管理 ACR 倉庫、GitHub 整合 | 服務類別配合 SDK |
+| Resolver Service | 別名查詢、URL 生成 | 查詢服務 |
+| SQLite | 倉庫映射、規則狀態 | better-sqlite3 |
+| Conf | 憑證、使用者設定 | 加密 JSON 檔案 |
 
 ## Recommended Project Structure
 
 ```
 src/
-├── api/                    # HTTP 路由和處理器
-│   ├── routes/            # 路由定義
-│   │   ├── provision.ts   # 倉庫掛載
-│   │   ├── resolve.ts     # 別名解析
-│   │   └── rules.ts       # 構建規則管理
-│   ├── middleware/        # 認證、日誌、錯誤處理
-│   └── schemas/           # Zod 驗證 schemas
-├── services/              # 業務邏輯
+├── cli/                    # CLI 入口和命令
+│   ├── index.ts           # CLI 入口點
+│   ├── commands/          # 命令實作
+│   │   ├── config.ts      # asor config
+│   │   ├── add.ts         # asor add
+│   │   ├── list.ts        # asor list
+│   │   ├── remove.ts      # asor remove
+│   │   ├── resolve.ts     # asor resolve
+│   │   └── rules.ts       # asor rules
+│   └── output.ts          # 終端輸出格式化
+├── services/              # 業務邏輯（與 Server 模式共用）
 │   ├── orchestrator.ts    # ACR + GitHub 編排
 │   ├── resolver.ts        # 別名解析邏輯
-│   ├── rule-manager.ts    # 構建規則智慧
-│   └── credential-vault.ts # 安全憑證處理
-├── clients/               # 外部 API 客戶端
+│   └── rule-manager.ts    # 構建規則管理
+├── clients/               # 外部 API 客戶端（與 Server 模式共用）
 │   ├── acr.ts            # 阿里雲 ACR SDK 包裝
 │   └── github.ts         # GitHub API 包裝
 ├── db/                    # 資料庫層
 │   ├── schema.ts         # Drizzle schema
-│   ├── migrations/       # 遷移檔案
-│   └── repositories/     # 資料存取物件
-├── jobs/                  # 背景任務
-│   └── rule-cleanup.ts   # 定期規則維護
-├── config/               # 設定
-│   └── index.ts         # 環境基礎設定
-└── server.ts            # 應用程式進入點
+│   └── index.ts          # 資料庫連線
+├── config/               # 設定管理
+│   └── store.ts          # 憑證和使用者設定儲存
+└── index.ts              # 模組導出
 ```
 
 ### Structure Rationale
 
-- **api/：** 將 HTTP 關注點與業務邏輯分離
-- **services/：** 核心業務邏輯，可脫離 HTTP 測試
-- **clients/：** 外部 API 的抽象層，容易 mock
-- **db/：** 資料庫層隔離，schema 為事實來源
-- **jobs/：** 背景處理，與請求處理分開
+- **cli/：** CLI 特有的入口和命令處理
+- **services/：** 核心業務邏輯，與未來 Server 模式共用
+- **clients/：** 外部 API 的抽象層，可測試
+- **db/：** SQLite 儲存倉庫映射
+- **config/：** 憑證和使用者偏好，使用 conf 套件
 
 ## Architectural Patterns
 
-### Pattern 1: Service Layer Pattern
+### Pattern 1: Command Pattern
 
-**What:** 業務邏輯隔離在服務類別中，不在路由中
-**When to use:** 任何有業務規則的非簡單 API
-**Trade-offs:** 更多檔案，但可測試且可維護
+**What:** 每個 CLI 命令是獨立的類別或函數
+**When to use:** CLI 工具標準模式
+**Trade-offs:** 檔案較多，但清晰可維護
+
+**Example:**
+```typescript
+// cli/commands/add.ts
+export async function addCommand(repoUrl: string, options: { alias: string }) {
+  const spinner = ora('Creating ACR repository...').start();
+  try {
+    const orchestrator = new OrchestratorService();
+    const result = await orchestrator.provisionRepo({
+      githubUrl: repoUrl,
+      alias: options.alias
+    });
+    spinner.succeed(`Repository created: ${result.acrUrl}`);
+    console.log(chalk.green(`docker pull ${result.acrUrl}:latest`));
+  } catch (error) {
+    spinner.fail(error.message);
+  }
+}
+```
+
+### Pattern 2: Shared Service Layer
+
+**What:** CLI 和未來的 Server 共用相同的服務層
+**When to use:** 計畫提供多種介面
+**Trade-offs:** 需要設計良好的抽象
 
 **Example:**
 ```typescript
 // services/orchestrator.ts
 export class OrchestratorService {
-  constructor(
-    private acrClient: ACRClient,
-    private githubClient: GitHubClient,
-    private db: Database
-  ) {}
-
+  // CLI 和 Server 都使用這個
   async provisionRepo(input: ProvisionInput): Promise<ProvisionResult> {
-    // 業務邏輯在這裡，不在路由處理器中
+    // 業務邏輯
   }
 }
 ```
-
-### Pattern 2: Repository Pattern
-
-**What:** 資料存取抽象在介面之後
-**When to use:** 多個資料來源、測試需求
-**Trade-offs:** 更多抽象，更容易替換實作
-
-**Example:**
-```typescript
-// db/repositories/repo-mapping.ts
-export class RepoMappingRepository {
-  constructor(private db: Database) {}
-  
-  async findByAlias(alias: string): Promise<RepoMapping | null> {
-    return this.db.select().from(repoMappings).where(eq(repoMappings.alias, alias));
-  }
-}
-```
-
-### Pattern 3: Background Job Processing
-
-**What:** 長時間執行的任務由佇列工作者處理
-**When to use:** GitHub API 輪詢、規則清理、通知
-**Trade-offs:** 維運複雜度、最終一致性
 
 ## Data Flow
 
-### Request Flow
+### Add Repo Flow
 
 ```
-[User Request]
+[User: asor add <url> --alias <name>]
     ↓
-[API Route] → [Validation] → [Service] → [Repository] → [Database]
-    ↓              ↓              ↓             ↓
-[Response] ← [Transform] ← [Query Result] ←───┘
+[CLI: parse args]
+    ↓
+[AddCommand] → [Orchestrator.provisionRepo()]
+    ↓
+[ACR: create repo] → [ACR: add build rules]
+    ↓
+[SQLite: save mapping]
+    ↓
+[Output: show docker pull command]
 ```
 
-### State Management
+### Resolve Flow
 
 ```
-[Database]
-    ↓ (cache on read)
-[Redis Cache]
-    ↓ (invalidate on write)
-[API Response]
+[User: asor resolve <alias>]
+    ↓
+[CLI: parse args]
+    ↓
+[ResolveCommand] → [Resolver.resolve(alias)]
+    ↓
+[SQLite: query mapping]
+    ↓
+[Output: show full ACR URL]
 ```
 
-### Key Data Flows
+## Data Storage
 
-1. **Repo Provisioning:** 使用者提交 GitHub URL → Orchestrator 建立 ACR 倉庫 → 映射別名 → 回傳憑證
-2. **Alias Resolution:** 請求到達 → 查詢映射表 → 回傳帶標籤的 ACR URL
-3. **Rule Cleanup:** 排程任務 → 取得規則 → 檢查 GitHub 分支狀態 → 刪除已合併分支規則
+### SQLite (倉庫映射)
 
-## Scaling Considerations
+```sql
+CREATE TABLE repos (
+  id INTEGER PRIMARY KEY,
+  alias TEXT UNIQUE NOT NULL,
+  github_url TEXT NOT NULL,
+  acr_url TEXT NOT NULL,
+  acr_region TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 0-1k repos | 單體即可，單一實例 |
-| 1k-10k repos | 加入讀取副本，快取常用映射 |
-| 10k+ repos | 考慮服務拆分（Orchestrator vs Resolver），水平擴展 |
+CREATE TABLE rules (
+  id INTEGER PRIMARY KEY,
+  repo_id INTEGER REFERENCES repos(id),
+  branch_pattern TEXT NOT NULL,
+  tag_template TEXT NOT NULL,
+  rule_id TEXT NOT NULL, -- ACR rule ID
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-### Scaling Priorities
+### Conf (憑證設定)
 
-1. **First bottleneck:** 資料庫連線 — 使用連線池（PgBouncer）
-2. **Second bottleneck:** GitHub API 速率限制 — 實作快取、批次請求
+```json
+{
+  "githubToken": "encrypted:...",
+  "aliyunAccessKeyId": "encrypted:...",
+  "aliyunAccessKeySecret": "encrypted:...",
+  "aliyunRegion": "cn-hongkong"
+}
+```
+
+## CLI User Experience
+
+### 輸出設計
+
+```bash
+$ asor add https://github.com/myorg/myapp --alias my-app
+⠋ Creating ACR repository...
+✓ Repository created: registry.cn-hongkong.aliyuncs.com/myorg/myapp
+
+Docker commands:
+  docker pull registry.cn-hongkong.aliyuncs.com/myorg/myapp:latest
+  docker login --username=xxx registry.cn-hongkong.aliyuncs.com
+
+$ asor resolve my-app
+registry.cn-hongkong.aliyuncs.com/myorg/myapp:latest
+
+$ asor resolve my-app --copy
+✓ Copied to clipboard: registry.cn-hongkong.aliyuncs.com/myorg/myapp:latest
+```
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: 將憑證儲存在環境變數
+### Anti-Pattern 1: 將憑證存在明文 JSON
 
-**What people do:** 將 AK/SK 存在 .env 檔案中
-**Why it's wrong:** 無輪換、無稽核、日誌外洩
-**Do this instead:** 加密儲存在資料庫，使用金鑰管理服務
+**What people do:** 直接存 JSON 檔案
+**Why it's wrong:** 安全風險
+**Do this instead:** 使用加密儲存
 
-### Anti-Pattern 2: 同步規則清理
+### Anti-Pattern 2: 同步 API 呼叫無反饋
 
-**What people do:** 在配置請求期間清理規則
-**Why it's wrong:** 回應慢、逾時風險、使用者體驗差
-**Do this instead:** 搶先背景清理，達到限制時快速失敗
-
-### Anti-Pattern 3: 在路由中直接使用 ACR SDK
-
-**What people do:** 從路由處理器直接呼叫 ACR SDK
-**Why it's wrong:** 緊密耦合、難以測試、無抽象
-**Do this instead:** 帶介面的包裝客戶端類別，可 mock
+**What people do:** 直接呼叫 API，使用者等待
+**Why it's wrong:** 無反饋，使用者不知道是否卡住
+**Do this instead:** 使用 spinner 或進度條
 
 ## Integration Points
 
@@ -194,25 +237,22 @@ export class RepoMappingRepository {
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| Aliyun ACR | 帶重試的 SDK 客戶端 | 有速率限制，冪等操作 |
-| GitHub API | 帶認證的 Octokit | 速率限制 5000/小時，使用條件請求 |
-| PostgreSQL | Drizzle ORM | 需要連線池 |
+| Aliyun ACR | SDK 客戶端 | 冪等操作 |
+| GitHub API | Octokit | 分支狀態查詢 |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| API ↔ Services | 直接函數呼叫 | 同程序，低延遲 |
-| Services ↔ Jobs | BullMQ 佇列 | 非同步，可靠傳遞 |
-| Services ↔ Database | Repository pattern | 交易式，可測試 |
+| CLI ↔ Services | 直接函數呼叫 | 同程序 |
+| Services ↔ Database | Drizzle ORM | 同步 API |
 
 ## Sources
 
-- Fastify 最佳實踐文件
+- Node.js CLI 最佳實踐
 - 阿里雲 ACR API 參考
-- GitHub REST API 文件
-- Node.js 生產環境最佳實踐
+- Commander.js 文件
 
 ---
-*Architecture research for: Container Registry Automation*
+*Architecture research for: CLI Tool*
 *Researched: 2026-03-19*

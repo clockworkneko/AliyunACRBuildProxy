@@ -1,8 +1,13 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
+import autoload from '@fastify/autoload';
 import envelopePlugin from './middleware/envelope.js';
 import authPlugin from './middleware/auth.js';
 import type { FastifyInstance, FastifyError } from 'fastify';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface AppOptions {
   logger?: boolean | object;
@@ -20,6 +25,14 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   await app.register(sensible);
   await app.register(envelopePlugin);
   await app.register(authPlugin);
+
+  // Auto-load routes from routes directory (skip in test mode)
+  if (process.env.NODE_ENV !== 'test') {
+    await app.register(autoload, {
+      dir: path.join(__dirname, 'routes'),
+      options: { prefix: '/v1' },
+    });
+  }
 
   // Global error handler
   app.setErrorHandler((error: FastifyError, request, reply) => {

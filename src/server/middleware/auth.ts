@@ -3,6 +3,14 @@ import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { configStore } from '../../config/store.js';
 
+// Extend Fastify context config to support skipAuth and rawBody
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    skipAuth?: boolean;
+    rawBody?: boolean;
+  }
+}
+
 // Timing-safe string comparison
 function timingSafeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a, 'utf-8');
@@ -19,7 +27,13 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 async function authPlugin(app: FastifyInstance) {
   app.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Skip auth for health check endpoints
+    // Check for route config that skips auth
+    const routeConfig = request.routeOptions?.config;
+    if (routeConfig?.skipAuth) {
+      return;
+    }
+
+    // Skip auth for health check endpoints (fallback for routes without routeOptions)
     if (request.url === '/health' || request.url === '/v1/health') {
       return;
     }

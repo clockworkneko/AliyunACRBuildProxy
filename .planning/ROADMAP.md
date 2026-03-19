@@ -6,7 +6,7 @@ ASOR 從一個輕量級 CLI 工具開始，讓開發者透過命令列快速管�
 
 ## Phases
 
-- [ ] **Phase 1: CLI 瑞士刀模式** - 完整的命令列工具，管理倉庫和查詢映像路徑
+- [x] **Phase 1: CLI 瑞士刀模式** - 完整的命令列工具，管理倉庫和查詢映像路徑
 - [ ] **Phase 2: HTTP Server 模式** - REST API 和 GitHub webhook 整合
 
 ## Phase Details
@@ -26,7 +26,7 @@ Plans:
 - [x] 01-01: CLI 框架與憑證管理 — Commander.js 設定、config 命令實作
 - [x] 01-02: 倉庫管理命令 — add、list、remove 命令實作
 - [x] 01-03: 別名解析命令 — resolve 命令實作
-- [ ] 01-04: 規則管理命令 — rules 命令實作
+- [x] 01-04: 規則管理命令 — rules 命令實作
 
 Plan files:
 - `.planning/phases/01-cli/01-01-PLAN.md`
@@ -57,7 +57,7 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CLI 瑞士刀模式 | 3/4 | In Progress | 01-01, 01-02, 01-03 |
+| 1. CLI 瑞士刀模式 | 4/4 | Complete | 2026-03-19 |
 | 2. HTTP Server 模式 | 0/3 | Not started | - |
 
 ---

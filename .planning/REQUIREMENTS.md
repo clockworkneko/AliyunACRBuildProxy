@@ -76,25 +76,25 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CRED-01 | Phase 1 | Pending |
-| CRED-02 | Phase 1 | Pending |
-| CRED-03 | Phase 1 | Pending |
-| CRED-04 | Phase 1 | Pending |
-| CRED-05 | Phase 1 | Pending |
-| CLIR-01 | Phase 1 | Pending |
-| CLIR-02 | Phase 1 | Pending |
-| CLIR-03 | Phase 1 | Pending |
-| CLIR-04 | Phase 1 | Pending |
-| CLIR-05 | Phase 1 | Pending |
-| CLIR-06 | Phase 1 | Pending |
-| CLIQ-01 | Phase 1 | Pending |
-| CLIQ-02 | Phase 1 | Pending |
-| CLIQ-03 | Phase 1 | Pending |
-| CLIQ-04 | Phase 1 | Pending |
-| CLRU-01 | Phase 1 | Pending |
-| CLRU-02 | Phase 1 | Pending |
-| CLRU-03 | Phase 1 | Pending |
-| CLRU-04 | Phase 1 | Pending |
+| CRED-01 | Phase 1 | ✓ Complete |
+| CRED-02 | Phase 1 | ✓ Complete |
+| CRED-03 | Phase 1 | ✓ Complete |
+| CRED-04 | Phase 1 | ✓ Complete |
+| CRED-05 | Phase 1 | ✓ Complete |
+| CLIR-01 | Phase 1 | ✓ Complete |
+| CLIR-02 | Phase 1 | ✓ Complete |
+| CLIR-03 | Phase 1 | ✓ Complete |
+| CLIR-04 | Phase 1 | ✓ Complete |
+| CLIR-05 | Phase 1 | ✓ Complete |
+| CLIR-06 | Phase 1 | ✓ Complete |
+| CLIQ-01 | Phase 1 | ✓ Complete |
+| CLIQ-02 | Phase 1 | ✓ Complete |
+| CLIQ-03 | Phase 1 | ✓ Complete |
+| CLIQ-04 | Phase 1 | ✓ Complete |
+| CLRU-01 | Phase 1 | ✓ Complete |
+| CLRU-02 | Phase 1 | ✓ Complete |
+| CLRU-03 | Phase 1 | ✓ Complete |
+| CLRU-04 | Phase 1 | ✓ Complete |
 | SERV-01 | Phase 2 | Pending |
 | SERV-02 | Phase 2 | Pending |
 | SERV-03 | Phase 2 | Pending |

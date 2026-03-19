@@ -25,7 +25,7 @@ ASOR 從一個輕量級 CLI 工具開始，讓開發者透過命令列快速管�
 Plans:
 - [x] 01-01: CLI 框架與憑證管理 — Commander.js 設定、config 命令實作
 - [x] 01-02: 倉庫管理命令 — add、list、remove 命令實作
-- [ ] 01-03: 別名解析命令 — resolve 命令實作
+- [x] 01-03: 別名解析命令 — resolve 命令實作
 - [ ] 01-04: 規則管理命令 — rules 命令實作
 
 Plan files:
@@ -57,7 +57,7 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CLI 瑞士刀模式 | 2/4 | In Progress | 01-01, 01-02 |
+| 1. CLI 瑞士刀模式 | 3/4 | In Progress | 01-01, 01-02, 01-03 |
 | 2. HTTP Server 模式 | 0/3 | Not started | - |
 
 ---

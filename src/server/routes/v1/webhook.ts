@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { webhookAuthHook } from '../../middleware/webhook-auth.js';
+import { cleanupRules } from '../../../services/rule-manager.js';
+import { listRepos } from '../../../services/orchestrator.js';
 
 interface GitHubWebhookPayload {
   ref?: string;
@@ -18,6 +20,53 @@ interface WebhookHeaders {
   'x-github-event': string;
   'x-hub-signature-256': string;
   'x-github-delivery': string;
+}
+
+interface CleanupResult {
+  alias: string;
+  removedCount: number;
+}
+
+/**
+ * Trigger cleanup for all repo aliases that match the given GitHub full name
+ */
+async function triggerCleanupForRepo(
+  app: FastifyInstance,
+  githubFullName: string
+): Promise<CleanupResult[]> {
+  const results: CleanupResult[] = [];
+
+  try {
+    // Get all repos and filter by GitHub full name
+    const repos = await listRepos();
+    const matchingRepos = repos.filter(
+      repo => `${repo.github_owner}/${repo.github_repo}` === githubFullName
+    );
+
+    for (const repo of matchingRepos) {
+      try {
+        const report = await cleanupRules(repo.alias);
+        results.push({
+          alias: repo.alias,
+          removedCount: report.removedCount,
+        });
+        app.log.info({
+          alias: repo.alias,
+          removedCount: report.removedCount,
+        }, 'Webhook-triggered cleanup completed');
+      } catch (err) {
+        app.log.error({
+          alias: repo.alias,
+          err,
+        }, 'Webhook-triggered cleanup failed');
+        // Continue with other repos even if one fails
+      }
+    }
+  } catch (err) {
+    app.log.error({ err }, 'Failed to list repos for cleanup');
+  }
+
+  return results;
 }
 
 export default async function webhookRoutes(app: FastifyInstance) {
@@ -80,6 +129,9 @@ async function handlePushEvent(
 
     app.log.info({ branch, repo }, 'Branch deleted (possibly merged)');
 
+    // Trigger cleanup for matching repos
+    const cleanupResults = repo ? await triggerCleanupForRepo(app, repo) : [];
+
     return reply.send({
       success: true,
       data: {
@@ -88,6 +140,7 @@ async function handlePushEvent(
         action: 'branch_deleted',
         branch,
         repo,
+        cleanup: cleanupResults,
       },
     });
   }
@@ -115,6 +168,9 @@ async function handleDeleteEvent(
   if (refType === 'branch') {
     app.log.info({ branch: ref, repo }, 'Branch deleted via delete event');
 
+    // Trigger cleanup for matching repos
+    const cleanupResults = repo ? await triggerCleanupForRepo(app, repo) : [];
+
     return reply.send({
       success: true,
       data: {
@@ -123,6 +179,7 @@ async function handleDeleteEvent(
         action: 'branch_deleted',
         branch: ref,
         repo,
+        cleanup: cleanupResults,
       },
     });
   }

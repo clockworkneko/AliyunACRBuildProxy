@@ -4,6 +4,8 @@ import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import webhookRoutes from '../../../src/server/routes/v1/webhook.js';
 import { configStore } from '../../../src/config/store.js';
+import { cleanupRules } from '../../../src/services/rule-manager.js';
+import { listRepos } from '../../../src/services/orchestrator.js';
 
 // Mock configStore
 vi.mock('../../../src/config/store.js', () => ({
@@ -302,6 +304,192 @@ describe('GitHub Webhook Endpoint', () => {
       expect(body.success).toBe(true);
       expect(body.data.processed).toBe(false);
       expect(body.data.message).toContain('not processed');
+    });
+  });
+
+  describe('cleanup logic', () => {
+    const mockCleanupRules = vi.mocked(cleanupRules);
+    const mockListRepos = vi.mocked(listRepos);
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockConfigStore.get.mockImplementation((key: string) => {
+        if (key === 'webhook-secret') return testSecret;
+        return undefined;
+      });
+    });
+
+    it('should trigger cleanup for matching repo aliases on branch deletion', async () => {
+      mockListRepos.mockResolvedValue([
+        { id: 1, alias: 'my-app', github_owner: 'owner', github_repo: 'repo', image_name: 'app', image_tag: 'latest', acr_namespace: 'ns', acr_repo_name: 'repo', acr_region: 'cn-hongkong' } as any,
+      ]);
+      mockCleanupRules.mockResolvedValue({ totalChecked: 5, removedCount: 2, mergedBranches: [], deletedBranches: [] });
+
+      const app = await buildTestApp();
+
+      const payload = JSON.stringify({
+        ref: 'refs/heads/feature-branch',
+        deleted: true,
+        repository: { full_name: 'owner/repo' },
+      });
+      const signature = createSignature(payload, testSecret);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/webhook/github',
+        headers: {
+          'x-hub-signature-256': signature,
+          'x-github-event': 'push',
+          'content-type': 'application/json',
+        },
+        body: payload,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.success).toBe(true);
+      expect(body.data.action).toBe('branch_deleted');
+      expect(body.data.cleanup).toBeDefined();
+      expect(body.data.cleanup).toHaveLength(1);
+      expect(body.data.cleanup[0].alias).toBe('my-app');
+      expect(body.data.cleanup[0].removedCount).toBe(2);
+      expect(mockCleanupRules).toHaveBeenCalledWith('my-app');
+    });
+
+    it('should trigger cleanup for delete branch events', async () => {
+      mockListRepos.mockResolvedValue([
+        { id: 1, alias: 'my-app', github_owner: 'owner', github_repo: 'repo', image_name: 'app', image_tag: 'latest', acr_namespace: 'ns', acr_repo_name: 'repo', acr_region: 'cn-hongkong' } as any,
+      ]);
+      mockCleanupRules.mockResolvedValue({ totalChecked: 3, removedCount: 1, mergedBranches: [], deletedBranches: [] });
+
+      const app = await buildTestApp();
+
+      const payload = JSON.stringify({
+        ref: 'deleted-branch',
+        ref_type: 'branch',
+        repository: { full_name: 'owner/repo' },
+      });
+      const signature = createSignature(payload, testSecret);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/webhook/github',
+        headers: {
+          'x-hub-signature-256': signature,
+          'x-github-event': 'delete',
+          'content-type': 'application/json',
+        },
+        body: payload,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.success).toBe(true);
+      expect(body.data.action).toBe('branch_deleted');
+      expect(body.data.cleanup).toBeDefined();
+      expect(body.data.cleanup).toHaveLength(1);
+      expect(mockCleanupRules).toHaveBeenCalledWith('my-app');
+    });
+
+    it('should cleanup multiple aliases for same repo', async () => {
+      mockListRepos.mockResolvedValue([
+        { id: 1, alias: 'app-v1', github_owner: 'owner', github_repo: 'repo', image_name: 'app', image_tag: 'v1', acr_namespace: 'ns', acr_repo_name: 'repo', acr_region: 'cn-hongkong' } as any,
+        { id: 2, alias: 'app-v2', github_owner: 'owner', github_repo: 'repo', image_name: 'app', image_tag: 'v2', acr_namespace: 'ns', acr_repo_name: 'repo', acr_region: 'cn-hongkong' } as any,
+      ]);
+      mockCleanupRules.mockResolvedValue({ totalChecked: 2, removedCount: 0, mergedBranches: [], deletedBranches: [] });
+
+      const app = await buildTestApp();
+
+      const payload = JSON.stringify({
+        ref: 'refs/heads/old-feature',
+        deleted: true,
+        repository: { full_name: 'owner/repo' },
+      });
+      const signature = createSignature(payload, testSecret);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/webhook/github',
+        headers: {
+          'x-hub-signature-256': signature,
+          'x-github-event': 'push',
+          'content-type': 'application/json',
+        },
+        body: payload,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.data.cleanup).toHaveLength(2);
+      expect(mockCleanupRules).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not crash when cleanup fails', async () => {
+      mockListRepos.mockResolvedValue([
+        { id: 1, alias: 'my-app', github_owner: 'owner', github_repo: 'repo', image_name: 'app', image_tag: 'latest', acr_namespace: 'ns', acr_repo_name: 'repo', acr_region: 'cn-hongkong' } as any,
+      ]);
+      mockCleanupRules.mockRejectedValue(new Error('Cleanup failed'));
+
+      const app = await buildTestApp();
+
+      const payload = JSON.stringify({
+        ref: 'refs/heads/feature-branch',
+        deleted: true,
+        repository: { full_name: 'owner/repo' },
+      });
+      const signature = createSignature(payload, testSecret);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/webhook/github',
+        headers: {
+          'x-hub-signature-256': signature,
+          'x-github-event': 'push',
+          'content-type': 'application/json',
+        },
+        body: payload,
+      });
+
+      // Webhook should still return success, even if cleanup failed
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.success).toBe(true);
+      expect(body.data.action).toBe('branch_deleted');
+      // Cleanup results should show empty or error
+      expect(body.data.cleanup).toBeDefined();
+    });
+
+    it('should return cleanup summary in response', async () => {
+      mockListRepos.mockResolvedValue([
+        { id: 1, alias: 'app-main', github_owner: 'owner', github_repo: 'repo', image_name: 'app', image_tag: 'main', acr_namespace: 'ns', acr_repo_name: 'repo', acr_region: 'cn-hongkong' } as any,
+      ]);
+      mockCleanupRules.mockResolvedValue({ totalChecked: 10, removedCount: 5, mergedBranches: [], deletedBranches: [] });
+
+      const app = await buildTestApp();
+
+      const payload = JSON.stringify({
+        ref: 'refs/heads/merged-feature',
+        deleted: true,
+        repository: { full_name: 'owner/repo' },
+      });
+      const signature = createSignature(payload, testSecret);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/webhook/github',
+        headers: {
+          'x-hub-signature-256': signature,
+          'x-github-event': 'push',
+          'content-type': 'application/json',
+        },
+        body: payload,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.data.cleanup).toEqual([
+        { alias: 'app-main', removedCount: 5 },
+      ]);
     });
   });
 });

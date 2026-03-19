@@ -3,6 +3,7 @@ import { configCommand } from './commands/config.js';
 import { addCommand } from './commands/add.js';
 import { listCommand } from './commands/list.js';
 import { removeCommand } from './commands/remove.js';
+import { resolveCommand } from './commands/resolve.js';
 
 const program = new Command();
 
@@ -15,6 +16,7 @@ program
   .addCommand(configCommand)
   .addCommand(addCommand)
   .addCommand(listCommand)
-  .addCommand(removeCommand);
+  .addCommand(removeCommand)
+  .addCommand(resolveCommand);
 
 program.parse();

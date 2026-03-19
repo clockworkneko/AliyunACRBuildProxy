@@ -47,9 +47,9 @@ Plan files:
 
 Plans:
 - [x] 02-01: HTTP Server Foundation — Fastify app factory, envelope plugin, API key auth
-- [ ] 02-02: Daemon Lifecycle — Server entry point, daemon manager, CLI commands
+- [x] 02-02: Daemon Lifecycle — Server entry point, daemon manager, CLI commands
 - [ ] 02-03: REST API Endpoints — /provision, /resolve, /rules endpoints
-- [ ] 02-04: GitHub Webhook Integration — webhook endpoint and HMAC signature verification
+- [x] 02-04: GitHub Webhook Integration — webhook endpoint and HMAC signature verification
 
 Plan files:
 - `.planning/phases/02-http-server/02-01-PLAN.md`
@@ -65,7 +65,7 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. CLI 瑞士刀模式 | 4/4 | Complete | 2026-03-19 |
-| 2. HTTP Server 模式 | 1/4 | In Progress | 2026-03-19 |
+| 2. HTTP Server 模式 | 3/4 | In Progress | 2026-03-19 |
 
 ---
 *Roadmap created: 2026-03-19*

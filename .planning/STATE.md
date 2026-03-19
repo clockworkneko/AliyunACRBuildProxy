@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-19T09:30:47.722Z"
+last_updated: "2026-03-19T11:12:58.188Z"
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 8
+  completed_plans: 6
 ---
 
 # Project State
@@ -35,13 +35,15 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 | 2026-03-19 | Plan 01-03 完成 | resolver 服務、resolve 命令 |
 | 2026-03-19 | Plan 01-04 完成 | rules 命令、rule-manager 服務、cleanup 功能 |
 | 2026-03-19 | Plan 02-01 完成 | Fastify 框架、envelope 格式、API key 認證 |
+| 2026-03-19 | Plan 02-02 完成 | Daemon 生命週期、CLI server 命令 |
+| 2026-03-19 | Plan 02-04 完成 | GitHub webhook、HMAC 簽章驗證 |
 
 ## Current Phase
 
 **Phase 2: HTTP Server 模式**
 - Status: In Progress
-- Plans: 1/4 completed (02-01 complete)
-- Next step: Execute Plan 02-02 (Daemon Lifecycle)
+- Plans: 3/4 completed (02-01, 02-02, 02-04 complete)
+- Next step: Execute Plan 02-03 (REST API Endpoints)
 
 ## Flags
 
@@ -62,9 +64,9 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 ## Stopped At
 
-Phase 2 in progress. Plan 02-01 complete. Ready for Plan 02-02.
+Phase 2 in progress. Plans 02-01, 02-02, 02-04 complete. Ready for Plan 02-03.
 
-**Resume file:** .planning/phases/02-http-server/02-02-PLAN.md
+**Resume file:** .planning/phases/02-http-server/02-03-PLAN.md
 
 ---
 *State initialized: 2026-03-19*

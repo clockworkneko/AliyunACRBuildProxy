@@ -10,6 +10,8 @@ const VALID_KEYS = [
   'aliyun-secret-key',
   'aliyun-region',
   'default-namespace',
+  'api-key',
+  'webhook-secret',
 ] as const;
 
 type ConfigKey = typeof VALID_KEYS[number];

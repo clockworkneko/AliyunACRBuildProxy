@@ -37,13 +37,14 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 | 2026-03-19 | Plan 02-01 完成 | Fastify 框架、envelope 格式、API key 認證 |
 | 2026-03-19 | Plan 02-02 完成 | Daemon 生命週期、CLI server 命令 |
 | 2026-03-19 | Plan 02-04 完成 | GitHub webhook、HMAC 簽章驗證 |
+| 2026-03-19 | Plan 02-03 完成 | REST API 端點 (/provision, /resolve, /rules) |
 
 ## Current Phase
 
 **Phase 2: HTTP Server 模式**
-- Status: In Progress
-- Plans: 3/4 completed (02-01, 02-02, 02-04 complete)
-- Next step: Execute Plan 02-03 (REST API Endpoints)
+- Status: Complete
+- Plans: 4/4 completed
+- Next step: Phase 2 verification
 
 ## Flags
 
@@ -64,9 +65,9 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 ## Stopped At
 
-Phase 2 in progress. Plans 02-01, 02-02, 02-04 complete. Ready for Plan 02-03.
+Phase 2 complete. All 4 plans finished. Ready for verification.
 
-**Resume file:** .planning/phases/02-http-server/02-03-PLAN.md
+**Resume:** Run verification for Phase 2
 
 ---
 *State initialized: 2026-03-19*

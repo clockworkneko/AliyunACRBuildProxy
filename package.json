@@ -1,6 +1,6 @@
 {
   "name": "asor",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "ACR Smart Orchestrator & Resolver - Manage Aliyun ACR repos with simple aliases",
   "type": "module",
   "bin": {
@@ -19,7 +19,9 @@
     "acr",
     "docker",
     "registry",
-    "cli"
+    "cli",
+    "http-server",
+    "webhook"
   ],
   "author": "",
   "license": "MIT",

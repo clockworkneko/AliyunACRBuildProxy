@@ -55,7 +55,7 @@ function decrypt(encryptedData: string): string {
   return decrypted;
 }
 
-const SENSITIVE_KEYS = ['github-token', 'aliyun-access-key', 'aliyun-secret-key'] as const;
+const SENSITIVE_KEYS = ['github-token', 'aliyun-access-key', 'aliyun-secret-key', 'api-key', 'webhook-secret'] as const;
 
 interface ConfigSchema {
   'github-token'?: string;
@@ -63,6 +63,10 @@ interface ConfigSchema {
   'aliyun-secret-key'?: string;
   'aliyun-region'?: string;
   'default-namespace'?: string;
+  'api-key'?: string;
+  'webhook-secret'?: string;
+  'server-port'?: number;
+  'server-host'?: string;
 }
 
 class ConfigStore {

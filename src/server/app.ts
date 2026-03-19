@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import envelopePlugin from './middleware/envelope.js';
+import authPlugin from './middleware/auth.js';
 import type { FastifyInstance, FastifyError } from 'fastify';
 
 export interface AppOptions {
@@ -18,6 +19,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
 
   await app.register(sensible);
   await app.register(envelopePlugin);
+  await app.register(authPlugin);
 
   // Global error handler
   app.setErrorHandler((error: FastifyError, request, reply) => {
@@ -36,9 +38,17 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
 
     const statusCode = error.statusCode ?? 500;
     
+    // Check for configuration-related errors (actionable 500 errors)
+    const isConfigurationError = error.message.includes('not configured');
+    
     // Map error codes based on status
     let errorCode = 'INTERNAL_ERROR';
-    if (statusCode === 400) {
+    let errorMessage = statusCode >= 500 ? 'Internal server error' : error.message;
+    
+    if (isConfigurationError) {
+      errorCode = 'CONFIGURATION_ERROR';
+      errorMessage = error.message;
+    } else if (statusCode === 400) {
       errorCode = 'VALIDATION_ERROR';
     } else if (statusCode === 401) {
       errorCode = 'UNAUTHORIZED';
@@ -52,7 +62,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       success: false,
       error: {
         code: errorCode,
-        message: statusCode >= 500 ? 'Internal server error' : error.message,
+        message: errorMessage,
       },
     });
   });

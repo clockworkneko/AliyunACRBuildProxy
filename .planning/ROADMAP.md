@@ -43,12 +43,19 @@ Plan files:
   2. 使用者可以呼叫 `/resolve?alias=<name>` 獲得 ACR 映像路徑
   3. GitHub webhook 可以觸發自動構建
   4. Webhook 端點驗證 GitHub 簽章
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
-- [ ] 02-01: HTTP Server 框架 — Fastify 設定、基本端點
-- [ ] 02-02: REST API 實作 — /provision、/resolve、/rules 端點
-- [ ] 02-03: GitHub Webhook 整合 — webhook 端點和簽章驗證
+- [ ] 02-01: HTTP Server Foundation — Fastify app factory, envelope plugin, API key auth
+- [ ] 02-02: Daemon Lifecycle — Server entry point, daemon manager, CLI commands
+- [ ] 02-03: REST API Endpoints — /provision, /resolve, /rules endpoints
+- [ ] 02-04: GitHub Webhook Integration — webhook endpoint and HMAC signature verification
+
+Plan files:
+- `.planning/phases/02-http-server/02-01-PLAN.md`
+- `.planning/phases/02-http-server/02-02-PLAN.md`
+- `.planning/phases/02-http-server/02-03-PLAN.md`
+- `.planning/phases/02-http-server/02-04-PLAN.md`
 
 ## Progress
 
@@ -58,7 +65,7 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. CLI 瑞士刀模式 | 4/4 | Complete | 2026-03-19 |
-| 2. HTTP Server 模式 | 0/3 | Not started | - |
+| 2. HTTP Server 模式 | 0/4 | Planned | - |
 
 ---
 *Roadmap created: 2026-03-19*

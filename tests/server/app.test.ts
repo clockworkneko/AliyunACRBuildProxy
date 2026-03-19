@@ -1,11 +1,29 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { buildApp } from '../../src/server/app.js';
+import { configStore } from '../../src/config/store.js';
 import type { FastifyInstance } from 'fastify';
+
+// Mock configStore
+vi.mock('../../src/config/store.js', () => ({
+  configStore: {
+    get: vi.fn(),
+    set: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(),
+  },
+}));
 
 describe('App Factory', () => {
   let app: FastifyInstance;
+  const mockConfigStore = vi.mocked(configStore);
 
   beforeEach(async () => {
+    vi.clearAllMocks();
+    // Default: API key is configured
+    mockConfigStore.get.mockImplementation((key: string) => {
+      if (key === 'api-key') return 'test-api-key';
+      return undefined;
+    });
     app = await buildApp({ logger: false });
   });
 
@@ -22,6 +40,9 @@ describe('App Factory', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/test-success',
+        headers: {
+          'x-api-key': 'test-api-key',
+        },
       });
 
       expect(response.statusCode).toBe(200);
@@ -39,6 +60,9 @@ describe('App Factory', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/test-error',
+        headers: {
+          'x-api-key': 'test-api-key',
+        },
       });
 
       expect(response.statusCode).toBe(400);
@@ -53,6 +77,9 @@ describe('App Factory', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/unknown-route',
+        headers: {
+          'x-api-key': 'test-api-key',
+        },
       });
 
       expect(response.statusCode).toBe(404);
@@ -82,6 +109,9 @@ describe('App Factory', () => {
         method: 'POST',
         url: '/test-validation',
         payload: {}, // Missing required 'name'
+        headers: {
+          'x-api-key': 'test-api-key',
+        },
       });
 
       expect(response.statusCode).toBe(400);
@@ -100,6 +130,9 @@ describe('App Factory', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/test-internal-error',
+        headers: {
+          'x-api-key': 'test-api-key',
+        },
       });
 
       expect(response.statusCode).toBe(500);

@@ -1,25 +1,30 @@
-import { $OpenApiUtil } from '@alicloud/openapi-core';
-import * as $Cr from '@alicloud/cr20181201';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
-const Config = $OpenApiUtil.Config;
+// Runtime imports (CommonJS for ESM/CJS interop)
+const openapi = require('@alicloud/openapi-core');
+const $Cr = require('@alicloud/cr20160607');
+
+const Config = openapi.$OpenApiUtil.Config;
 
 export interface AcrConfig {
   accessKeyId: string;
   accessKeySecret: string;
   region: string;
+  endpoint?: string; // For personal ACR: crpi-xxx.cn-shanghai.personal.cr.aliyuncs.com
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface AcrClient {
-  listNamespace(request: $Cr.ListNamespaceRequest): Promise<$Cr.ListNamespaceResponse>;
-  getNamespace(request: $Cr.GetNamespaceRequest): Promise<$Cr.GetNamespaceResponse>;
-  createNamespace(request: $Cr.CreateNamespaceRequest): Promise<$Cr.CreateNamespaceResponse>;
-  getRepository(request: $Cr.GetRepositoryRequest): Promise<$Cr.GetRepositoryResponse>;
-  createRepository(request: $Cr.CreateRepositoryRequest): Promise<$Cr.CreateRepositoryResponse>;
-  deleteRepository(request: $Cr.DeleteRepositoryRequest): Promise<$Cr.DeleteRepositoryResponse>;
-  createRepoBuildRule(request: $Cr.CreateRepoBuildRuleRequest): Promise<$Cr.CreateRepoBuildRuleResponse>;
-  listRepoBuildRule(request: $Cr.ListRepoBuildRuleRequest): Promise<$Cr.ListRepoBuildRuleResponse>;
-  deleteRepoBuildRule(request: $Cr.DeleteRepoBuildRuleRequest): Promise<$Cr.DeleteRepoBuildRuleResponse>;
-  createBuildRecordByRule(request: $Cr.CreateBuildRecordByRuleRequest): Promise<$Cr.CreateBuildRecordByRuleResponse>;
+  getNamespaceList(request: any): Promise<any>;
+  getNamespace(request: any): Promise<any>;
+  createNamespace(request: any): Promise<any>;
+  getRepo(request: any): Promise<any>;
+  createRepo(request: any): Promise<any>;
+  deleteRepo(request: any): Promise<any>;
+  createRepoBuildRule(request: any): Promise<any>;
+  getRepoBuildRuleList(request: any): Promise<any>;
+  deleteRepoBuildRule(request: any): Promise<any>;
 }
 
 export function createAcrClient(config: AcrConfig): AcrClient {
@@ -28,23 +33,33 @@ export function createAcrClient(config: AcrConfig): AcrClient {
     accessKeySecret: config.accessKeySecret,
   });
   
-  openApiConfig.endpoint = `registry.${config.region}.aliyuncs.com`;
+  // Use custom endpoint if provided (personal ACR), otherwise build from region
+  if (config.endpoint) {
+    // Ensure endpoint has https:// prefix
+    const endpoint = config.endpoint.startsWith('http') 
+      ? config.endpoint 
+      : `https://${config.endpoint}`;
+    openApiConfig.endpoint = endpoint;
+  } else {
+    openApiConfig.endpoint = `registry.${config.region}.aliyuncs.com`;
+  }
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Client = ($Cr as any).default;
+  const Client = $Cr.default;
   return new Client(openApiConfig);
 }
 
 export async function validateAcrCredentials(
   accessKeyId: string,
   accessKeySecret: string,
-  region: string
+  region: string,
+  endpoint?: string
 ): Promise<boolean> {
-  const client = createAcrClient({ accessKeyId, accessKeySecret, region });
+  const client = createAcrClient({ accessKeyId, accessKeySecret, region, endpoint });
   
   try {
-    const request = new $Cr.ListNamespaceRequest({ pageNo: 1, pageSize: 1 });
-    await client.listNamespace(request);
+    const request = new $Cr.GetNamespaceListRequest({ pageNo: 1, pageSize: 1 });
+    await client.getNamespaceList(request);
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -55,7 +70,7 @@ export async function validateAcrCredentials(
 export async function listNamespaces(
   client: AcrClient
 ): Promise<string[]> {
-  const response = await client.listNamespace(new $Cr.ListNamespaceRequest({ pageNo: 1, pageSize: 100 }));
+  const response = await client.getNamespaceList(new $Cr.GetNamespaceListRequest({ pageNo: 1, pageSize: 100 }));
   const body = response.body as { namespaces?: Array<{ namespaceName?: string }> };
   return body.namespaces?.map(n => n.namespaceName || '').filter(Boolean) || [];
 }
@@ -65,7 +80,7 @@ export async function namespaceExists(
   namespace: string
 ): Promise<boolean> {
   try {
-    const response = await client.listNamespace(new $Cr.ListNamespaceRequest({ 
+    const response = await client.getNamespaceList(new $Cr.GetNamespaceListRequest({ 
       namespaceName: namespace,
       pageNo: 1, 
       pageSize: 1 
@@ -81,10 +96,9 @@ export async function createNamespace(
   client: AcrClient,
   namespace: string
 ): Promise<void> {
-  const request = new $Cr.CreateNamespaceRequest({
-    namespaceName: namespace,
-  });
-  await client.createNamespace(request);
+  // Personal ACR: namespace is auto-created when creating first repo
+  // Skip explicit namespace creation
+  console.log(`ℹ️  Namespace "${namespace}" will be auto-created on first repo creation`);
 }
 
 export async function createRepository(
@@ -93,14 +107,8 @@ export async function createRepository(
   repoName: string,
   region: string
 ): Promise<{ repoId: string; repoUrl: string }> {
-  const request = new $Cr.CreateRepositoryRequest({
-    repoNamespace: namespace,
-    repoName: repoName,
-    repoType: 'PUBLIC',
-    summary: `Managed by asor`,
-  });
-  
-  await client.createRepository(request);
+  // Personal ACR: Skip API call (repo auto-created on first push)
+  console.log(`ℹ️  Repo "${namespace}/${repoName}" will be auto-created on first push`);
   
   const repoUrl = `registry.${region}.aliyuncs.com/${namespace}/${repoName}`;
   
@@ -116,8 +124,8 @@ export async function getRepository(
   repoName: string
 ): Promise<{ repoId: string; repoUrl: string } | null> {
   try {
-    await client.getRepository(new $Cr.GetRepositoryRequest({
-      repoNamespace: namespace,
+    await client.getRepo(new $Cr.GetRepoRequest({
+      repoNamespaceName: namespace,
       repoName: repoName,
     }));
     return { repoId: `${namespace}/${repoName}`, repoUrl: '' };
@@ -131,11 +139,11 @@ export async function deleteRepository(
   namespace: string,
   repoName: string
 ): Promise<void> {
-  const request = new $Cr.DeleteRepositoryRequest({
-    repoNamespace: namespace,
+  const request = new $Cr.DeleteRepoRequest({
+    repoNamespaceName: namespace,
     repoName: repoName,
   });
-  await client.deleteRepository(request);
+  await client.deleteRepo(request);
 }
 
 export async function createBuildRule(
@@ -146,11 +154,11 @@ export async function createBuildRule(
   tag: string
 ): Promise<{ ruleId: string }> {
   const request = new $Cr.CreateRepoBuildRuleRequest({
-    repoNamespace: namespace,
+    repoNamespaceName: namespace,
     repoName: repoName,
     buildRuleName: `${branch}-${tag}`,
     dockerfileLocation: './',
-    branch: branch,
+    buildRule: branch,
     imageTag: tag,
   });
   
@@ -165,23 +173,23 @@ export async function listBuildRules(
   namespace: string,
   repoName: string
 ): Promise<Array<{ ruleId: string; branch: string; tag: string }>> {
-  const request = new $Cr.ListRepoBuildRuleRequest({
-    repoNamespace: namespace,
+  const request = new $Cr.GetRepoBuildRuleListRequest({
+    repoNamespaceName: namespace,
     repoName: repoName,
     pageNo: 1,
     pageSize: 50,
   });
   
-  const response = await client.listRepoBuildRule(request);
+  const response = await client.getRepoBuildRuleList(request);
   const body = response.body as { buildRules?: Array<{ 
     buildRuleId?: string; 
-    branch?: string;
+    buildRule?: string;
     imageTag?: string;
   }> };
   
   return (body.buildRules || []).map(rule => ({
     ruleId: rule.buildRuleId || '',
-    branch: rule.branch || '',
+    branch: rule.buildRule || '',
     tag: rule.imageTag || '',
   }));
 }
@@ -193,31 +201,13 @@ export async function deleteBuildRule(
   ruleId: string
 ): Promise<void> {
   const request = new $Cr.DeleteRepoBuildRuleRequest({
-    repoNamespace: namespace,
+    repoNamespaceName: namespace,
     repoName: repoName,
     buildRuleId: ruleId,
   });
   await client.deleteRepoBuildRule(request);
 }
 
-export async function triggerBuild(
-  client: AcrClient,
-  namespace: string,
-  repoName: string,
-  buildRuleId: string
-): Promise<{ buildId: string }> {
-  const request = new $Cr.CreateBuildRecordByRuleRequest({
-    repoNamespace: namespace,
-    repoName: repoName,
-    buildRuleId: buildRuleId,
-  });
-  
-  const response = await client.createBuildRecordByRule(request);
-  const body = response.body as { buildId?: string };
-  
-  return { buildId: body.buildId || '' };
-}
-
-export function getAcrPullUrl(region: string, namespace: string, repoName: string): string {
-  return `registry.${region}.aliyuncs.com/${namespace}/${repoName}`;
+export function getAcrPullUrl(endpoint: string, namespace: string, repoName: string): string {
+  return `${endpoint}/${namespace}/${repoName}`;
 }

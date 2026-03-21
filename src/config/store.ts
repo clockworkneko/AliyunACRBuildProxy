@@ -55,13 +55,14 @@ function decrypt(encryptedData: string): string {
   return decrypted;
 }
 
-const SENSITIVE_KEYS = ['github-token', 'aliyun-access-key', 'aliyun-secret-key', 'api-key', 'webhook-secret'] as const;
+const SENSITIVE_KEYS = ['github-token', 'aliyun-access-key', 'aliyun-secret-key', 'acr-endpoint', 'api-key', 'webhook-secret'] as const;
 
 interface ConfigSchema {
   'github-token'?: string;
   'aliyun-access-key'?: string;
   'aliyun-secret-key'?: string;
   'aliyun-region'?: string;
+  'acr-endpoint'?: string; // Personal ACR endpoint (e.g., crpi-xxx.cn-shanghai.personal.cr.aliyuncs.com)
   'default-namespace'?: string;
   'api-key'?: string;
   'webhook-secret'?: string;

@@ -9,6 +9,7 @@ const VALID_KEYS = [
   'aliyun-access-key',
   'aliyun-secret-key',
   'aliyun-region',
+  'acr-endpoint',
   'default-namespace',
   'api-key',
   'webhook-secret',
@@ -108,6 +109,7 @@ export const configCommand = new Command('config')
         const aliyunAccessKey = configStore.get('aliyun-access-key');
         const aliyunSecretKey = configStore.get('aliyun-secret-key');
         const aliyunRegion = configStore.get('aliyun-region') || 'cn-hongkong';
+        const acrEndpoint = configStore.get('acr-endpoint'); // Optional for personal ACR
 
         let hasErrors = false;
 
@@ -128,8 +130,16 @@ export const configCommand = new Command('config')
         if (aliyunAccessKey && aliyunSecretKey) {
           const spin = spinner('Validating Aliyun credentials...');
           try {
-            await validateAcrCredentials(aliyunAccessKey, aliyunSecretKey, aliyunRegion);
-            spin.succeed('Aliyun credentials: valid');
+            // For personal ACR, skip API validation (requires Docker Registry V2 auth flow)
+            // Just validate that credentials are configured
+            if (acrEndpoint) {
+              spin.succeed('Aliyun credentials: configured (personal ACR)');
+              info(`Endpoint: ${acrEndpoint}`);
+            } else {
+              // Enterprise ACR - validate via API
+              await validateAcrCredentials(aliyunAccessKey, aliyunSecretKey, aliyunRegion, acrEndpoint);
+              spin.succeed('Aliyun credentials: valid');
+            }
           } catch (err) {
             spin.fail('Aliyun credentials: invalid');
             error(err instanceof Error ? err.message : String(err));

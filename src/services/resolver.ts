@@ -1,4 +1,5 @@
 import { getDb, getRepoByAlias, getAllRepos } from '../db/index.js';
+import { configStore } from '../config/store.js';
 import type { Repo } from '../db/schema.js';
 
 export interface ResolveResult {
@@ -25,7 +26,15 @@ export async function resolve(alias: string, options: ResolveOptions = {}): Prom
   }
   
   const tag = options.tag || tagFromAlias || repo.image_tag;
-  const acrUrl = `registry.${repo.acr_region}.aliyuncs.com/${repo.acr_namespace}/${repo.acr_repo_name}`;
+  
+  // Check if personal ACR is configured
+  const acrEndpoint = configStore.get('acr-endpoint');
+  
+  // Use personal ACR endpoint if configured, otherwise build from region
+  const acrUrl = acrEndpoint
+    ? `${acrEndpoint}/${repo.acr_namespace}/${repo.acr_repo_name}`
+    : `registry.${repo.acr_region}.aliyuncs.com/${repo.acr_namespace}/${repo.acr_repo_name}`;
+  
   const fullImagePath = `${acrUrl}:${tag}`;
   
   return {

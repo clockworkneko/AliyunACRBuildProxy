@@ -60,6 +60,7 @@ export async function provisionRepo(input: ProvisionInput): Promise<ProvisionRes
   const githubToken = configStore.get('github-token');
   const aliyunAccessKey = configStore.get('aliyun-access-key');
   const aliyunSecretKey = configStore.get('aliyun-secret-key');
+  const acrEndpoint = configStore.get('acr-endpoint'); // Personal ACR endpoint
   
   if (!githubToken) {
     throw new Error('GitHub token not configured. Run: asor config set github-token <token>');
@@ -80,19 +81,35 @@ export async function provisionRepo(input: ProvisionInput): Promise<ProvisionRes
     throw new Error(`Alias "${alias}" already exists. Use a different alias or remove the existing one first.`);
   }
   
-  const acrClient = createAcrClient({
-    accessKeyId: aliyunAccessKey,
-    accessKeySecret: aliyunSecretKey,
-    region,
-  });
-  
-  const nsExists = await withRetry(() => namespaceExists(acrClient, namespace));
-  if (!nsExists) {
-    await withRetry(() => createNamespace(acrClient, namespace));
-  }
-  
   const repoName = alias;
-  const acrRepo = await withRetry(() => createRepository(acrClient, namespace, repoName, region));
+  let acrRepo: { repoId: string; repoUrl: string } | null = null;
+  
+  // Personal ACR: Skip API calls (uses Docker Registry V2 API, not OpenAPI)
+  // Just configure the namespace and repo name for later manual setup
+  if (acrEndpoint) {
+    console.log('ℹ️  Personal ACR detected - skipping ACR API calls');
+    console.log(`   Namespace: ${namespace} (auto-created on first push)`);
+    console.log(`   Repo: ${repoName}`);
+    console.log(`   Endpoint: ${acrEndpoint}`);
+    acrRepo = {
+      repoId: `${namespace}/${repoName}`,
+      repoUrl: `${acrEndpoint}/${namespace}/${repoName}`,
+    };
+  } else {
+    // Enterprise ACR: Use OpenAPI
+    const acrClient = createAcrClient({
+      accessKeyId: aliyunAccessKey,
+      accessKeySecret: aliyunSecretKey,
+      region,
+    });
+    
+    const nsExists = await withRetry(() => namespaceExists(acrClient, namespace));
+    if (!nsExists) {
+      await withRetry(() => createNamespace(acrClient, namespace));
+    }
+    
+    acrRepo = await withRetry(() => createRepository(acrClient, namespace, repoName, region));
+  }
   
   let githubOwner: string | null = null;
   let githubRepoName: string | null = null;
@@ -130,9 +147,19 @@ export async function provisionRepo(input: ProvisionInput): Promise<ProvisionRes
       `Add Dockerfile for ${alias}`
     ));
     
-    await withRetry(() => createBuildRule(acrClient, namespace, repoName, githubBranch!, input.imageTag));
+    // Skip build rule creation for personal ACR (requires manual setup in console)
+    if (!acrEndpoint) {
+      const acrClient = createAcrClient({
+        accessKeyId: aliyunAccessKey,
+        accessKeySecret: aliyunSecretKey,
+        region,
+      });
+      await withRetry(() => createBuildRule(acrClient, namespace, repoName, githubBranch!, input.imageTag));
+    } else {
+      console.log('ℹ️  Personal ACR: Build rule must be configured manually in ACR console');
+    }
   } catch (err) {
-    console.error('Warning: GitHub integration failed, but ACR repo created:', err instanceof Error ? err.message : String(err));
+    console.error('Warning: GitHub integration failed:', err instanceof Error ? err.message : String(err));
   }
   
   const repo = insertRepo({
@@ -148,7 +175,9 @@ export async function provisionRepo(input: ProvisionInput): Promise<ProvisionRes
     acr_repo_id: acrRepo.repoId,
   });
   
-  const acrUrl = getAcrPullUrl(region, namespace, repoName);
+  // Use personal ACR endpoint if configured, otherwise build from region
+  const pullEndpoint = acrEndpoint || `registry.${region}.aliyuncs.com`;
+  const acrUrl = getAcrPullUrl(pullEndpoint, namespace, repoName);
   
   return {
     alias,
